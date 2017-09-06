@@ -1,3 +1,9 @@
-127.0.0.1:44100
-127.0.0.1:44101
-127.0.0.1:44102
+nashville:44100
+denver:44101
+boston:44102
+phoenix:44103
+tallahassee:44104
+hartford:44105
+boise:44106
+indianapolis:44107
+annapolis:44108
