@@ -51,7 +51,7 @@ public final class Collator {
                 continue;
             else if (mode == VALIDATION_MODE.EXCLUDE_SUMMARIZED && summaryList.get(i) != null)
                 continue;
-
+            System.out.println("Comparing " + addressList.get(i).getHostName() + " against " + addr.getHostName());
             if (addressList.get(i).getHostName().equals(addr.getHostName()))
             {
                 return i;
