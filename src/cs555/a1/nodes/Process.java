@@ -20,11 +20,24 @@ public final class Process {
     private static int port = -1;
     private static InetSocketAddress collatorAddress;
     private static List<InetSocketAddress> addressList;
+    private static List<Boolean> done = null;
+    private static boolean doneSending = false;
+    private static Object doneSendingBarrier = new Object();
 
     private static AtomicInteger sent = new AtomicInteger(0);
     private static AtomicInteger received = new AtomicInteger(0);
     private static AtomicLong sentSummation = new AtomicLong(0);
     private static AtomicLong receivedSummation = new AtomicLong(0);
+
+    private static boolean allDone()
+    {
+        synchronized (done) {
+            for (boolean i : done)
+                if (!i)
+                    return false;
+        }
+        return true;
+    }
 
     private Process() {}
 
@@ -34,54 +47,107 @@ public final class Process {
     }
 
     private static void onInitiate() {
-        new Thread( () -> {
-            Random nodeChooser = new Random();
-            Random payloadGen = new Random();
+        Random nodeChooser = new Random();
+        Random payloadGen = new Random();
 
-            for (int i = 0; i < NUM_ROUNDS; i++) {
-                int target = nodeChooser.nextInt(addressList.size());
-                LOGGER.log(Level.FINEST, "Target index is " + target);
-                try {
-                    Sender s = new Sender(addressList.get(target));
-                    LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
-                    for (int j = 0; j < MSGS_PER_ROUND; j++) {
-                        Payload m = new Payload(payloadGen.nextInt());
-                        s.send(m);
-                        sent.incrementAndGet();
-                        sentSummation.addAndGet(m.getData());
+        for (int i = 0; i < NUM_ROUNDS; i++) {
+            int target = nodeChooser.nextInt(addressList.size());
+            LOGGER.log(Level.FINEST, "Target index is " + target);
+            try {
+                Sender s = new Sender(addressList.get(target));
+                LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
+                for (int j = 0; j < MSGS_PER_ROUND; j++) {
+                    Payload m = new Payload(payloadGen.nextInt());
+                    s.send(m);
+                    sent.incrementAndGet();
+                    sentSummation.addAndGet(m.getData());
+                }
+                s.close();
+            } catch (IllegalStateException e) {
+                LOGGER.log(Level.SEVERE, e.getMessage());
+            }
+        }
+        broadcast(new Done());
+        synchronized (doneSendingBarrier)
+        {
+            doneSending = true;
+            doneSendingBarrier.notify();
+        }
+    }
+
+    private static void onDone(InetAddress source)
+    {
+        int idx = validateHost(source, Process.VALIDATION_MODE.EXCLUDE_DONE);
+        if (idx >= 0)
+        {
+            synchronized (done)
+            {
+                done.set(idx, true);
+            }
+
+            if (allDone()) {
+                try
+                {
+                    synchronized(doneSendingBarrier)
+                    {
+                        while(!doneSending)
+                            doneSendingBarrier.wait();
                     }
+                }
+                catch(InterruptedException e)
+                {
+                    LOGGER.log(Level.SEVERE, e.toString(), e);
+                }
+
+                LOGGER.log(Level.INFO, "Received all messages");
+                try {
+                    Sender s = new Sender(Process.collatorAddress);
+                    s.send(new Summary(sent.get(), received.get(), sentSummation.get(), receivedSummation.get()));
                     s.close();
                 } catch (IllegalStateException e) {
                     LOGGER.log(Level.WARNING, e.getMessage());
                 }
             }
-
-            try {
-                Thread.sleep(10000);
-                Sender s = new Sender(Process.collatorAddress);
-                s.send(new Summary(sent.get(), received.get(), sentSummation.get(), receivedSummation.get()));
-                s.close();
-            } catch (IllegalStateException | InterruptedException e) {
-                LOGGER.log(Level.WARNING, e.getMessage());
-            }
-        }).start();
+        }
+        else
+        {
+            LOGGER.log(Level.INFO, "DONE message received from unrecognized source");
+        }
     }
 
-    private static void onDone()
-    {
-        System.exit(0);
-    }
+    private enum VALIDATION_MODE {EXCLUDE_NONE, EXCLUDE_DONE}
 
-    private static int validateHost(InetAddress addr)
+    private static int validateHost(InetAddress addr, Process.VALIDATION_MODE mode)
     {
         for(int i = 0; i < addressList.size(); i++)
         {
+            if (mode == Process.VALIDATION_MODE.EXCLUDE_DONE && done.get(i))
+                continue;
+
             if (addressList.get(i).getHostName().equals(addr.getHostName()))
             {
                 return i;
             }
         }
         return -1;
+    }
+
+    private static void broadcast(Message m)
+    {
+        for(InetSocketAddress a: addressList)
+        {
+            try
+            {
+                Sender s = new Sender(a);
+                s.send(m);
+                s.close();
+            }
+            catch(IllegalStateException e)
+            {
+                LOGGER.log(Level.WARNING, e.getMessage());
+                throw e;
+            }
+        }
     }
 
     private static void printUsage()
@@ -121,6 +187,11 @@ public final class Process {
             Process.port = port;
             Process.collatorAddress = collatorAddress;
             Process.addressList = Collections.unmodifiableList(addresses);
+            Process.done = new ArrayList<>();
+
+            while(Process.done.size() < Process.addressList.size()) {
+                Process.done.add(false);
+            }
         }
 
         return success;
@@ -148,6 +219,7 @@ public final class Process {
             {
                 LOGGER.log(Level.SEVERE, e.toString(), e);
             }
+
         }
         else
         {
@@ -168,20 +240,22 @@ public final class Process {
             InetAddress clientAddress = s.getInetAddress();
             if (clientAddress != null)
             {
-                boolean isValid =  Process.validateHost(clientAddress) >= 0;
+                boolean isValid =  Process.validateHost(clientAddress, VALIDATION_MODE.EXCLUDE_NONE) >= 0;
                 if (isValid)
                 {
                     LOGGER.log(Level.FINE, "Connection request is valid");
                     LOGGER.log(Level.FINER, "Starting receiver");
 
-                    Process.ProcessReceiver r = new Process.ProcessReceiver(s);
-                    while(!r.shouldClose())
-                    {
-                        Message m = r.receive();
-                        r.handleMessage(m, s.getInetAddress());
-                    }
-                    r.close();
-                    LOGGER.log(Level.FINER, "Receiver completed");
+                    new Thread(() -> {
+                        Process.ProcessReceiver r = new Process.ProcessReceiver(s);
+                        while(!r.shouldClose())
+                        {
+                            Message m = r.receive();
+                            r.handleMessage(m, s.getInetAddress());
+                        }
+                        r.close();
+                        LOGGER.log(Level.FINER, "Receiver completed");
+                    }).start();
                 }
                 else
                 {
@@ -219,8 +293,6 @@ public final class Process {
             return false;
         }
 
-
-
         @Override
         public void handleMessage(Message m, InetAddress source)
         {
@@ -234,6 +306,9 @@ public final class Process {
                 case PAYLOAD:
                     consecutivePayloads++;
                     Process.onPayload((Payload) m);
+                    break;
+                case DONE:
+                    Process.onDone(source);
                     break;
                 default:
                     throw new UnsupportedOperationException("Invalid message received");
