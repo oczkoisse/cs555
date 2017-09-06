@@ -126,7 +126,7 @@ public final class Collator {
     {
         int sent = 0, received = 0;
         long sentSummation = 0, receivedSummation = 0;
-        String formatString = "%1$-20s %2$8d %3$8d %4$16d %5$16d";
+        String formatString = "%1$-35s %2$8d %3$8d %4$16d %5$16d";
 
         for(int i=0; i<Collator.summaryList.size(); i++)
         {
