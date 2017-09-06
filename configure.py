@@ -5,7 +5,7 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 
 collator = None
 nodes = []
-bin_path = sys.argv[2]
+bin_path = os.path.abspath(sys.argv[2])
 
 # Read config file
 with open(sys.argv[1]) as config:
