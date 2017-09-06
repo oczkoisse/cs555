@@ -262,7 +262,8 @@ public final class Process {
             InetAddress clientAddress = s.getInetAddress();
             if (clientAddress != null)
             {
-                boolean isValid =  Process.validateHost(clientAddress, VALIDATION_MODE.EXCLUDE_NONE) >= 0;
+                boolean isValid =  Process.validateHost(clientAddress, VALIDATION_MODE.EXCLUDE_NONE) >= 0 ||
+                                   clientAddress.getCanonicalHostName().equals(Process.collatorAddress.getHostString()) ;
                 if (isValid)
                 {
                     LOGGER.log(Level.FINE, "Connection request is valid");
