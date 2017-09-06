@@ -47,37 +47,39 @@ public final class Process {
     }
 
     private static void onInitiate() {
-        Random nodeChooser = new Random();
-        Random payloadGen = new Random();
+        new Thread(() -> {
+            Random nodeChooser = new Random();
+            Random payloadGen = new Random();
 
-        for (int i = 0; i < NUM_ROUNDS; i++) {
-            int target = nodeChooser.nextInt(addressList.size());
-            LOGGER.log(Level.FINEST, "Target index is " + target);
-            Sender s = null;
-            try {
-                LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
-                s = new Sender(addressList.get(target));
+            for (int i = 0; i < NUM_ROUNDS; i++) {
+                int target = nodeChooser.nextInt(addressList.size());
+                LOGGER.log(Level.FINEST, "Target index is " + target);
+                Sender s = null;
+                try {
+                    LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
+                    s = new Sender(addressList.get(target));
 
-                for (int j = 0; j < MSGS_PER_ROUND; j++) {
-                    Payload m = new Payload(payloadGen.nextInt());
-                    s.send(m);
-                    sent.incrementAndGet();
-                    sentSummation.addAndGet(m.getData());
+                    for (int j = 0; j < MSGS_PER_ROUND; j++) {
+                        Payload m = new Payload(payloadGen.nextInt());
+                        s.send(m);
+                        sent.incrementAndGet();
+                        sentSummation.addAndGet(m.getData());
+                    }
+                } catch (IllegalStateException e) {
+                    LOGGER.log(Level.SEVERE, e.getMessage());
                 }
-            } catch (IllegalStateException e) {
-                LOGGER.log(Level.SEVERE, e.getMessage());
+                finally {
+                    if (s!=null)
+                        s.close();
+                }
             }
-            finally {
-                if (s!=null)
-                    s.close();
+            broadcast(new Done());
+            synchronized (doneSendingBarrier)
+            {
+                doneSending = true;
+                doneSendingBarrier.notify();
             }
-        }
-        broadcast(new Done());
-        synchronized (doneSendingBarrier)
-        {
-            doneSending = true;
-            doneSendingBarrier.notify();
-        }
+        }).start();
     }
 
     private static void onDone(InetAddress source)
@@ -128,13 +130,14 @@ public final class Process {
 
     private static int validateHost(InetAddress addr, Process.VALIDATION_MODE mode)
     {
+        String target = addr.getCanonicalHostName();
         for(int i = 0; i < addressList.size(); i++)
         {
             if (mode == Process.VALIDATION_MODE.EXCLUDE_DONE && done.get(i))
                 continue;
-
-            if (addressList.get(i).getHostName().equals(addr.getHostName()))
-            {
+            String cur = addressList.get(i).getAddress().getCanonicalHostName();
+            LOGGER.log(Level.FINEST, "Comparing target " + target + " against " + cur);
+            if (cur.equals(target))            {
                 return i;
             }
         }
@@ -265,16 +268,14 @@ public final class Process {
                     LOGGER.log(Level.FINE, "Connection request is valid");
                     LOGGER.log(Level.FINER, "Starting receiver");
 
-                    new Thread(() -> {
-                        Process.ProcessReceiver r = new Process.ProcessReceiver(s);
-                        while(!r.shouldClose())
-                        {
-                            Message m = r.receive();
-                            r.handleMessage(m, s.getInetAddress());
-                        }
-                        r.close();
-                        LOGGER.log(Level.FINER, "Receiver completed");
-                    }).start();
+                    Process.ProcessReceiver r = new Process.ProcessReceiver(s);
+                    while(!r.shouldClose())
+                    {
+                        Message m = r.receive();
+                        r.handleMessage(m, s.getInetAddress());
+                    }
+                    r.close();
+                    LOGGER.log(Level.FINER, "Receiver completed");
                 }
                 else
                 {

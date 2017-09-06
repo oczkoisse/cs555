@@ -45,14 +45,16 @@ public final class Collator {
 
     private static int validateHost(InetAddress addr, VALIDATION_MODE mode)
     {
+        String target = addr.getCanonicalHostName();
         for(int i = 0; i < addressList.size(); i++)
         {
             if (mode == VALIDATION_MODE.EXCLUDE_READY && ready.get(i))
                 continue;
             else if (mode == VALIDATION_MODE.EXCLUDE_SUMMARIZED && summaryList.get(i) != null)
                 continue;
-            //System.out.println("Comparing " + addressList.get(i).getHostName() + " against " + addr.getHostName());
-            if (addressList.get(i).getHostName().equals(addr.getHostName()))
+            String cur = addressList.get(i).getAddress().getCanonicalHostName();
+            LOGGER.log(Level.FINEST, "Comparing target " + target + " against " + cur);
+            if (cur.equals(target))
             {
                 return i;
             }
@@ -124,7 +126,7 @@ public final class Collator {
     {
         int sent = 0, received = 0;
         long sentSummation = 0, receivedSummation = 0;
-        String formatString = "%1$-20s %2$-8d %3$-8d %4$-16d %5$-16d";
+        String formatString = "%1$-20s %2$8d %3$8d %4$16d %5$16d";
 
         for(int i=0; i<Collator.summaryList.size(); i++)
         {
