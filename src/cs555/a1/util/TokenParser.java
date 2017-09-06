@@ -1,7 +1,9 @@
 package cs555.a1.util;
 
 import java.io.File;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 
 public final class TokenParser
 {
@@ -84,13 +86,15 @@ public final class TokenParser
         if (parts.length == 2)
         {
             try {
-                String host = parts[0].trim();
+                String host = InetAddress.getByName(parts[0].trim()).getHostName();
                 int port = TokenParser.parseAsInt(parts[1].trim(), 0, 65535);
                 return new InetSocketAddress(host, port);
             }
             catch (IllegalArgumentException e)
             {
                 throw new IllegalArgumentException(String.format("%1$s cannot be parsed as an address", tok));
+            } catch (UnknownHostException e) {
+                throw new IllegalArgumentException(String.format("Cannot resolve %1$s"));
             }
         }
         else
