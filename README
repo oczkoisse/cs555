@@ -24,8 +24,12 @@ java cs555.a1.nodes.Process <PORT> <CONFIG_FILE_PATH>
 
 java cs555.a1.nodes.Collator <PORT> <COLLATOR_HOST:COLLATOR_PORT> <CONFIG_FILE_PATH>
 
+To compile and rcompile:
+make
+make clean && make
+
 TO generate config files for each process, execute
-python configure.py config.txt
+python configure.py config.txt <binary_dir_for_project>
 
 The config.txt is a file containing listening addresses for each component of the sytem, the first line being the address of Collator.
 By executing the above script, all necessary config files are generated: config0.txt for Collator, and config1.txt onwards for other nodes.
