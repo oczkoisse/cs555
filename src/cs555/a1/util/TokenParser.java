@@ -77,7 +77,7 @@ public final class TokenParser
      * @throws IllegalArgumentException If the string cannot be parsed as a valid IP address
      * @throws NullPointerException If {@code tok} is null
      */
-    public static InetSocketAddress parseAsAddress(String tok)
+    public static InetSocketAddress parseAsAddress(String tok, boolean resolve)
     {
         if (tok == null)
             throw new NullPointerException("null cannot be parsed as an address");
@@ -87,12 +87,17 @@ public final class TokenParser
         {
             try {
                 String host = parts[0].trim();
+                if (resolve)
+                    host = InetAddress.getByName(host).getCanonicalHostName();
                 int port = TokenParser.parseAsInt(parts[1].trim(), 0, 65535);
                 return new InetSocketAddress(host, port);
             }
             catch (IllegalArgumentException e)
             {
                 throw new IllegalArgumentException(String.format("%1$s cannot be parsed as an address", tok));
+            }
+            catch (UnknownHostException e) {
+                throw new IllegalArgumentException(String.format("%1$s cannot be resolved as a known host", tok));
             }
         }
         else

@@ -52,7 +52,7 @@ public final class Collator {
                 continue;
             else if (mode == VALIDATION_MODE.EXCLUDE_SUMMARIZED && summaryList.get(i) != null)
                 continue;
-            String cur = addressList.get(i).getAddress().getCanonicalHostName();
+            String cur = addressList.get(i).getHostString();
             LOGGER.log(Level.FINEST, "Comparing target " + target + " against " + cur);
             if (cur.equals(target))
             {

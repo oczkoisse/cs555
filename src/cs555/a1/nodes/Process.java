@@ -135,7 +135,7 @@ public final class Process {
         {
             if (mode == Process.VALIDATION_MODE.EXCLUDE_DONE && done.get(i))
                 continue;
-            String cur = addressList.get(i).getAddress().getCanonicalHostName();
+            String cur = addressList.get(i).getHostString();
             LOGGER.log(Level.FINEST, "Comparing target " + target + " against " + cur);
             if (cur.equals(target))            {
                 return i;
@@ -184,7 +184,7 @@ public final class Process {
             try {
                 port = TokenParser.parseAsInt(args[0], 0, 65535);
 
-                collatorAddress = TokenParser.parseAsAddress(args[1]);
+                collatorAddress = TokenParser.parseAsAddress(args[1], true);
 
                 File f = TokenParser.parseAsPath(args[2]);
                 addresses = ConfigReader.read(f.getPath(), false, true);
