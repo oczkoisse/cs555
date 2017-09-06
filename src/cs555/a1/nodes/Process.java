@@ -53,18 +53,23 @@ public final class Process {
         for (int i = 0; i < NUM_ROUNDS; i++) {
             int target = nodeChooser.nextInt(addressList.size());
             LOGGER.log(Level.FINEST, "Target index is " + target);
+            Sender s = null;
             try {
-                Sender s = new Sender(addressList.get(target));
                 LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
+                s = new Sender(addressList.get(target));
+
                 for (int j = 0; j < MSGS_PER_ROUND; j++) {
                     Payload m = new Payload(payloadGen.nextInt());
                     s.send(m);
                     sent.incrementAndGet();
                     sentSummation.addAndGet(m.getData());
                 }
-                s.close();
             } catch (IllegalStateException e) {
                 LOGGER.log(Level.SEVERE, e.getMessage());
+            }
+            finally {
+                if (s!=null)
+                    s.close();
             }
         }
         broadcast(new Done());
@@ -100,12 +105,16 @@ public final class Process {
                 }
 
                 LOGGER.log(Level.INFO, "Received all messages");
+                Sender s = null;
                 try {
-                    Sender s = new Sender(Process.collatorAddress);
+                    s = new Sender(Process.collatorAddress);
                     s.send(new Summary(sent.get(), received.get(), sentSummation.get(), receivedSummation.get()));
-                    s.close();
                 } catch (IllegalStateException e) {
                     LOGGER.log(Level.WARNING, e.getMessage());
+                }
+                finally {
+                    if (s != null)
+                        s.close();
                 }
             }
         }
@@ -136,16 +145,21 @@ public final class Process {
     {
         for(InetSocketAddress a: addressList)
         {
+            Sender s = null;
             try
             {
-                Sender s = new Sender(a);
+                s = new Sender(a);
                 s.send(m);
-                s.close();
             }
             catch(IllegalStateException e)
             {
                 LOGGER.log(Level.WARNING, e.getMessage());
                 throw e;
+            }
+            finally
+            {
+                if (s!= null)
+                    s.close();
             }
         }
     }
@@ -207,17 +221,22 @@ public final class Process {
             listener.start();
 
             LOGGER.log(Level.FINER, "Thread started");
+            Sender s = null;
             try
             {
                 LOGGER.log(Level.FINER, "Sending READY message to Collator");
-                Sender s = new Sender(Process.collatorAddress);
+                s = new Sender(Process.collatorAddress);
                 s.send(new Ready());
                 LOGGER.log(Level.FINER, "READY sent");
-                s.close();
             }
             catch (IllegalStateException e)
             {
                 LOGGER.log(Level.SEVERE, e.toString(), e);
+            }
+            finally
+            {
+                if (s!=null)
+                    s.close();
             }
 
         }

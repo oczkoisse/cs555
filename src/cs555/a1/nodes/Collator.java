@@ -102,16 +102,20 @@ public final class Collator {
     {
         for(InetSocketAddress a: addressList)
         {
+            Sender s = null;
             try
             {
-                Sender s = new Sender(a);
+                s = new Sender(a);
                 s.send(m);
-                s.close();
             }
             catch(IllegalStateException e)
             {
                 LOGGER.log(Level.WARNING, e.getMessage());
                 throw e;
+            }
+            finally {
+                if (s != null)
+                    s.close();
             }
         }
     }
