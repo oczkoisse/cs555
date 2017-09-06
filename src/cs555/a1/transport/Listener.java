@@ -3,6 +3,8 @@ package cs555.a1.transport;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -11,7 +13,8 @@ public abstract class Listener implements Runnable {
 	private static final Logger LOGGER = Logger.getLogger(Listener.class.getName());
 	
 	protected ServerSocket sock;
-	
+	private AtomicBoolean closed = new AtomicBoolean(false);
+
 	public Listener(int port, boolean reuse)
 	{
 		try
@@ -45,30 +48,41 @@ public abstract class Listener implements Runnable {
 
 	public boolean close()
 	{
-	    boolean closed = false;
+	    if (this.closed.get())
+	        return true;
+
+	    boolean success = false;
 	    try
         {
             sock.close();
-            closed = true;
+            success = true;
         }
         catch(IOException e)
         {
             LOGGER.log(Level.SEVERE, e.toString(), e);
         }
-        closed &= closeOther();
-	    return closed;
+        success &= closeOther();
+	    if (success)
+        {
+            this.closed.set(true);
+        }
+	    return success;
 	}
 
 	public void run()
 	{
 		try
 		{
-			while (true)
+			while (!closed.get())
 			{
 				Socket s = sock.accept();
 				handleClient(s);
 			}
 		}
+		catch (SocketException e)
+        {
+            LOGGER.log(Level.INFO, "Remote host disconnected");
+        }
 		catch(IOException e) {
 			LOGGER.log(Level.SEVERE, e.toString(), e);
 		}

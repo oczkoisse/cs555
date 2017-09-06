@@ -2,6 +2,7 @@ package cs555.a1.transport;
 
 import java.net.*;
 import java.io.*;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -42,6 +43,29 @@ public final class Sender
 		{
 			LOGGER.log(Level.SEVERE, e.toString(), e);
 			throw new IllegalStateException("Failed to write to socket");
+		}
+	}
+
+	public static void broadcast(Message m, List<InetSocketAddress> addList)
+	{
+		for(InetSocketAddress a: addList)
+		{
+			Sender s = null;
+			try
+			{
+				s = new Sender(a);
+				s.send(m);
+			}
+			catch(IllegalStateException e)
+			{
+				LOGGER.log(Level.WARNING, e.getMessage());
+				throw e;
+			}
+			finally
+			{
+				if (s!= null)
+					s.close();
+			}
 		}
 	}
 

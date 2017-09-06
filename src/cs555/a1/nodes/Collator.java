@@ -17,6 +17,8 @@ public final class Collator {
     private static List<Summary> summaryList = null;
     private static List<Boolean> ready = null;
 
+    private static CollatorListener listener;
+
     private Collator() {}
 
     private static boolean allReady()
@@ -74,7 +76,7 @@ public final class Collator {
 
             if (allReady()) {
                 LOGGER.log(Level.INFO, "Initiating");
-                broadcast(new Initiate());
+                Sender.broadcast(new Initiate(), addressList);
             }
         }
         else
@@ -96,28 +98,7 @@ public final class Collator {
             if(allSummarized())
             {
                 printSummary();
-            }
-        }
-    }
-
-    private static void broadcast(Message m)
-    {
-        for(InetSocketAddress a: addressList)
-        {
-            Sender s = null;
-            try
-            {
-                s = new Sender(a);
-                s.send(m);
-            }
-            catch(IllegalStateException e)
-            {
-                LOGGER.log(Level.WARNING, e.getMessage());
-                throw e;
-            }
-            finally {
-                if (s != null)
-                    s.close();
+                listener.close();
             }
         }
     }
@@ -175,6 +156,7 @@ public final class Collator {
             Collator.ready = new ArrayList<>();
             Collator.summaryList = new ArrayList<>();
 
+            Collator.listener = new Collator.CollatorListener(Collator.port);
             // Default initialize to null for consistent ordering with addressList
             while(Collator.summaryList.size() < Collator.addressList.size()) {
                 Collator.ready.add(false);
@@ -190,10 +172,9 @@ public final class Collator {
         LOGGER.setLevel(Level.ALL);
         if (Collator.parseArgs(args))
         {
-            LOGGER.log(Level.FINER, "Starting listener thread");
-            Thread listener = new Thread(new Collator.CollatorListener(Collator.port));
-            listener.start();
-            LOGGER.log(Level.FINER, "Thread started");
+            LOGGER.log(Level.FINE, "Starting listener thread");
+            new Thread(Collator.listener).start();
+            LOGGER.log(Level.FINE, "Listener thread started");
         }
         else
         {
@@ -211,21 +192,31 @@ public final class Collator {
         @Override
         public void handleClient(Socket s)
         {
-            LOGGER.log(Level.INFO, "Received a new connection request");
             InetAddress clientAddress = s.getInetAddress();
             if (clientAddress != null)
             {
+                LOGGER.log(Level.INFO, "Received a new connection request from " + clientAddress.toString());
                 boolean isValid = Collator.validateHost(clientAddress, VALIDATION_MODE.EXCLUDE_NONE) >= 0;
                 if (isValid)
                 {
-                    LOGGER.log(Level.FINE, "Connection request is valid");
-                    LOGGER.log(Level.FINER, "Starting receiver");
+                    LOGGER.log(Level.INFO, "Connection request is valid. Accepting");
+                    LOGGER.log(Level.FINE, "Starting receiver");
 
-                    Collator.CollatorReceiver r = new CollatorReceiver(s);
-                    r.handleMessage(r.receive(), s.getInetAddress());
-                    r.close();
+                    Collator.CollatorReceiver r = null;
+                    try {
+                        r = new CollatorReceiver(s);
+                        Message m = r.receive();
+                        r.handleMessage(m, s.getInetAddress());
+                    }
+                    catch (IllegalStateException e)
+                    {
+                        LOGGER.log(Level.WARNING, "Remote socket closed while receiving");
+                    } finally {
+                        if (r != null)
+                            r.close();
+                    }
 
-                    LOGGER.log(Level.FINER,  "Receiver completed");
+                    LOGGER.log(Level.FINE,  "Receiver completed");
                 }
                 else
                 {
@@ -255,8 +246,8 @@ public final class Collator {
         @Override
         public void handleMessage(Message m, InetAddress source)
         {
-            LOGGER.log(Level.FINER, "Received a message");
-            LOGGER.log(Level.FINEST, "Message type is " + m.getType());
+            LOGGER.log(Level.FINE, "Received a message");
+            LOGGER.log(Level.INFO, "Message type is " + m.getType());
             switch (m.getType()) {
                 case READY:
                     Collator.onReady(source);

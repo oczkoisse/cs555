@@ -22,9 +22,10 @@ public final class Process {
     private static int port = -1;
     private static InetSocketAddress collatorAddress;
     private static List<InetSocketAddress> addressList;
-    private static List<Boolean> done = null;
+    private static List<Boolean> done;
     private static boolean doneSending = false;
-    private static Object doneSendingBarrier = new Object();
+    private static final Object doneSendingBarrier = new Object();
+    private static ProcessListener listener;
 
     private static AtomicInteger sent = new AtomicInteger(0);
     private static AtomicInteger received = new AtomicInteger(0);
@@ -74,7 +75,8 @@ public final class Process {
                     s.close();
             }
         }
-        broadcast(new Done());
+        LOGGER.log(Level.INFO, "Sent all messages");
+        Sender.broadcast(new Done(), addressList);
         synchronized (doneSendingBarrier)
         {
             doneSending = true;
@@ -93,6 +95,7 @@ public final class Process {
             }
 
             if (allDone()) {
+                LOGGER.log(Level.INFO, "Received all messages");
                 try
                 {
                     synchronized(doneSendingBarrier)
@@ -106,17 +109,21 @@ public final class Process {
                     LOGGER.log(Level.SEVERE, e.toString(), e);
                 }
 
-                LOGGER.log(Level.INFO, "Received all messages");
                 Sender s = null;
                 try {
                     s = new Sender(Process.collatorAddress);
-                    s.send(new Summary(sent.get(), received.get(), sentSummation.get(), receivedSummation.get()));
+                    Summary summary = new Summary(sent.get(), received.get(), sentSummation.get(), receivedSummation.get());
+                    s.send(summary);
+                    LOGGER.log(Level.INFO,
+                            String.format("Sent the summary: Sent %d, Received %d, Sent Summation %d, Received Summation %d",
+                                    summary.getSent(), summary.getReceived(), summary.getSentSummation(), summary.getReceivedSummation()));
                 } catch (IllegalStateException e) {
                     LOGGER.log(Level.WARNING, e.getMessage());
                 }
                 finally {
                     if (s != null)
                         s.close();
+                    Process.listener.close();
                 }
             }
         }
@@ -144,28 +151,7 @@ public final class Process {
         return -1;
     }
 
-    private static void broadcast(Message m)
-    {
-        for(InetSocketAddress a: addressList)
-        {
-            Sender s = null;
-            try
-            {
-                s = new Sender(a);
-                s.send(m);
-            }
-            catch(IllegalStateException e)
-            {
-                LOGGER.log(Level.WARNING, e.getMessage());
-                throw e;
-            }
-            finally
-            {
-                if (s!= null)
-                    s.close();
-            }
-        }
-    }
+
 
     private static void printUsage()
     {
@@ -206,6 +192,11 @@ public final class Process {
             Process.addressList = Collections.unmodifiableList(addresses);
             Process.done = new ArrayList<>();
 
+            LOGGER.log(Level.FINER, "Starting listener thread");
+            Process.listener = new Process.ProcessListener(Process.port);
+            new Thread(Process.listener).start();
+            LOGGER.log(Level.FINER, "Thread started");
+
             while(Process.done.size() < Process.addressList.size()) {
                 Process.done.add(false);
             }
@@ -219,11 +210,6 @@ public final class Process {
         LOGGER.setLevel(Level.ALL);
         if (Process.parseArgs(args))
         {
-            LOGGER.log(Level.FINER, "Starting listener thread");
-            Thread listener = new Thread(new Process.ProcessListener(Process.port));
-            listener.start();
-
-            LOGGER.log(Level.FINER, "Thread started");
             Sender s = null;
             try
             {
@@ -305,6 +291,7 @@ public final class Process {
                     Process.onPayload((Payload) m);
                     break;
                 case DONE:
+                    consecutivePayloads = 5;
                     Process.onDone(source);
                     break;
                 default:
@@ -327,9 +314,18 @@ public final class Process {
 
                     while(!shouldClose())
                     {
-                        Message m = receive();
-                        handleMessage(m, super.sock.getInetAddress());
+                        try {
+                            Message m = receive();
+                            handleMessage(m, super.sock.getInetAddress());
+                        }
+                        catch (IllegalStateException e)
+                        {
+                            LOGGER.log(Level.SEVERE, e.getMessage());
+                            close();
+                            break;
+                        }
                     }
+
                     close();
                     LOGGER.log(Level.FINER, "Receiver completed");
                 }
