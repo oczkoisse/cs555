@@ -253,7 +253,7 @@ public final class Process {
     {
         public ProcessListener(int port)
         {
-            super(port);
+            super(port, true);
         }
 
         @Override

@@ -205,7 +205,7 @@ public final class Collator {
     {
         public CollatorListener(int port)
         {
-            super(port);
+            super(port, true);
         }
 
         @Override

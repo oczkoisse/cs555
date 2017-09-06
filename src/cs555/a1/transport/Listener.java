@@ -12,17 +12,24 @@ public abstract class Listener implements Runnable {
 	
 	protected ServerSocket sock;
 	
-	public Listener(int port)
+	public Listener(int port, boolean reuse)
 	{
 		try
 		{
 			sock = new ServerSocket(port);
+			if (reuse)
+				sock.setReuseAddress(reuse);
 		}
 		catch(IllegalArgumentException | IOException e)
 		{
 			LOGGER.log(Level.SEVERE, e.toString(), e);
 			throw new IllegalStateException("Server socket failed to initialize");
 		}
+	}
+
+	public Listener(int port)
+	{
+		this(port, false);
 	}
 	
 	public Listener()
