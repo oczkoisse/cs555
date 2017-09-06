@@ -10,8 +10,8 @@ public abstract class Receiver {
 
     private static final Logger LOGGER = Logger.getLogger(Receiver.class.getName());
 
-    private Socket sock;
-    private ObjectInputStream ins;
+    protected Socket sock;
+    protected ObjectInputStream ins;
 
     public Receiver(Socket sock)
     {

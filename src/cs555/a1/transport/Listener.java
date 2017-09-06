@@ -38,19 +38,25 @@ public abstract class Listener implements Runnable {
 	}
 	
 	public abstract void handleClient(Socket s);
-	
+    protected boolean closeOther()
+    {
+        return true;
+    }
+
 	public boolean close()
 	{
+	    boolean closed = false;
 	    try
         {
             sock.close();
-            return true;
+            closed = true;
         }
         catch(IOException e)
         {
             LOGGER.log(Level.SEVERE, e.toString(), e);
-            return false;
         }
+        closed &= closeOther();
+	    return closed;
 	}
 
 	public void run()

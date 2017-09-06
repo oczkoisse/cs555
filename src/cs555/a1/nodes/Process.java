@@ -7,6 +7,8 @@ import cs555.a1.util.*;
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.*;
@@ -47,39 +49,37 @@ public final class Process {
     }
 
     private static void onInitiate() {
-        new Thread(() -> {
-            Random nodeChooser = new Random();
-            Random payloadGen = new Random();
+        Random nodeChooser = new Random();
+        Random payloadGen = new Random();
 
-            for (int i = 0; i < NUM_ROUNDS; i++) {
-                int target = nodeChooser.nextInt(addressList.size());
-                LOGGER.log(Level.FINEST, "Target index is " + target);
-                Sender s = null;
-                try {
-                    LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
-                    s = new Sender(addressList.get(target));
+        for (int i = 0; i < NUM_ROUNDS; i++) {
+            int target = nodeChooser.nextInt(addressList.size());
+            LOGGER.log(Level.FINEST, "Target index is " + target);
+            Sender s = null;
+            try {
+                LOGGER.log(Level.FINER, "Target is: " + addressList.get(target));
+                s = new Sender(addressList.get(target));
 
-                    for (int j = 0; j < MSGS_PER_ROUND; j++) {
-                        Payload m = new Payload(payloadGen.nextInt());
-                        s.send(m);
-                        sent.incrementAndGet();
-                        sentSummation.addAndGet(m.getData());
-                    }
-                } catch (IllegalStateException e) {
-                    LOGGER.log(Level.SEVERE, e.getMessage());
+                for (int j = 0; j < MSGS_PER_ROUND; j++) {
+                    Payload m = new Payload(payloadGen.nextInt());
+                    s.send(m);
+                    sent.incrementAndGet();
+                    sentSummation.addAndGet(m.getData());
                 }
-                finally {
-                    if (s!=null)
-                        s.close();
-                }
+            } catch (IllegalStateException e) {
+                LOGGER.log(Level.SEVERE, e.getMessage());
             }
-            broadcast(new Done());
-            synchronized (doneSendingBarrier)
-            {
-                doneSending = true;
-                doneSendingBarrier.notify();
+            finally {
+                if (s!=null)
+                    s.close();
             }
-        }).start();
+        }
+        broadcast(new Done());
+        synchronized (doneSendingBarrier)
+        {
+            doneSending = true;
+            doneSendingBarrier.notify();
+        }
     }
 
     private static void onDone(InetAddress source)
@@ -251,58 +251,34 @@ public final class Process {
 
     private static class ProcessListener extends Listener
     {
+        private final ExecutorService pool;
+
         public ProcessListener(int port)
         {
             super(port, true);
+            pool = Executors.newFixedThreadPool(Process.addressList.size());
         }
 
         @Override
         public void handleClient(Socket s)
         {
-            InetAddress clientAddress = s.getInetAddress();
-            if (clientAddress != null)
-            {
-                boolean isValid =  Process.validateHost(clientAddress, VALIDATION_MODE.EXCLUDE_NONE) >= 0 ||
-                                   clientAddress.getCanonicalHostName().equals(Process.collatorAddress.getHostString()) ;
-                if (isValid)
-                {
-                    LOGGER.log(Level.FINE, "Connection request is valid");
-                    LOGGER.log(Level.FINER, "Starting receiver");
+            pool.execute(new ProcessReceiver(s));
+        }
 
-                    Process.ProcessReceiver r = new Process.ProcessReceiver(s);
-                    while(!r.shouldClose())
-                    {
-                        Message m = r.receive();
-                        r.handleMessage(m, s.getInetAddress());
-                    }
-                    r.close();
-                    LOGGER.log(Level.FINER, "Receiver completed");
-                }
-                else
-                {
-                    LOGGER.log(Level.INFO, "Connection request is invalid. Rejecting");
-                    try {
-                        s.close();
-                    }
-                    catch (IOException e) {
-                        LOGGER.log(Level.WARNING, e.toString(), e);
-                    }
-                }
-            }
-            else
-            {
-                LOGGER.log(Level.WARNING, "Passed socket returned null on getInetAddress()");
-            }
+        @Override
+        protected boolean closeOther()
+        {
+            pool.shutdown();
+            return true;
         }
     }
 
-    private static class ProcessReceiver extends Receiver
+    private static class ProcessReceiver extends Receiver implements Runnable
     {
         public ProcessReceiver(Socket s)
         {
             super(s);
         }
-
         private int consecutivePayloads = 0;
 
         private boolean shouldClose()
@@ -334,7 +310,44 @@ public final class Process {
                 default:
                     throw new UnsupportedOperationException("Invalid message received");
             }
+        }
 
+        @Override
+        public void run()
+        {
+            InetAddress clientAddress = super.sock.getInetAddress();
+            if (clientAddress != null)
+            {
+                boolean isValid =  Process.validateHost(clientAddress, VALIDATION_MODE.EXCLUDE_NONE) >= 0 ||
+                        clientAddress.getCanonicalHostName().equals(Process.collatorAddress.getHostString()) ;
+                if (isValid)
+                {
+                    LOGGER.log(Level.FINE, "Connection request is valid");
+                    LOGGER.log(Level.FINER, "Starting receiver");
+
+                    while(!shouldClose())
+                    {
+                        Message m = receive();
+                        handleMessage(m, super.sock.getInetAddress());
+                    }
+                    close();
+                    LOGGER.log(Level.FINER, "Receiver completed");
+                }
+                else
+                {
+                    LOGGER.log(Level.INFO, "Connection request is invalid. Rejecting");
+                    try {
+                        super.sock.close();
+                    }
+                    catch (IOException e) {
+                        LOGGER.log(Level.WARNING, e.toString(), e);
+                    }
+                }
+            }
+            else
+            {
+                LOGGER.log(Level.WARNING, "Passed socket returned null on getInetAddress()");
+            }
         }
     }
 }
