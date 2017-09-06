@@ -1,8 +1,11 @@
 import sys
+import os
+
+script_dir = os.path.dirname(os.path.realpath(__file__))
 
 collator = None
 nodes = []
-bin_path = "~/Documents/Assignments/cs555/out/production/cs555"
+bin_path = sys.argv[2]
 
 # Read config file
 with open(sys.argv[1]) as config:
@@ -14,7 +17,7 @@ with open(sys.argv[1]) as config:
 
 invocations = []
 collator_host, collator_port = collator.split(":")
-collator_cmd =  "cd " + bin_path + "; " + "java cs555.a1.nodes.Collator " + collator_port + " ./config0.txt"
+collator_cmd =  "cd " + bin_path + "; " + "java cs555.a1.nodes.Collator " + collator_port + " " + os.path.join(script_dir, "config0.txt")
 if collator_host != "127.0.0.1" and collator_host != "localhost":
     collator_cmd = "ssh " + collator_host + " -t \"" + collator_cmd + "; bash -l\""
 invocations += [collator_cmd]
@@ -33,7 +36,7 @@ for i in range(len(nodes)):
         for n in other_nodes:
             f.write(n + '\n')
     # Prepare commands while at it
-    invocation = ' '.join(["java cs555.a1.nodes.Process", port, collator, "./config" + str(i+1) + ".txt"])
+    invocation = ' '.join(["java cs555.a1.nodes.Process", port, collator, os.path.join(script_dir, "config" + str(i+1) + ".txt")])
     cmd = "cd " + bin_path + "; " + invocation
     if host != '127.0.0.1' and host != 'localhost':
          cmd = "ssh " + host + " -t \"" +  cmd + "; bash -l\""
