@@ -1,4 +1,4 @@
-package cs555.a2.transport.events;
+package cs555.a2.transport.messenger;
 
 import java.net.Socket;
 
@@ -19,7 +19,7 @@ public class ConnectionReceived extends Event
 
     public boolean setSocket(Socket sock)
     {
-        if (sock != null && this.sock != null) {
+        if (sock != null && this.sock == null) {
             this.sock = sock;
             return true;
         }

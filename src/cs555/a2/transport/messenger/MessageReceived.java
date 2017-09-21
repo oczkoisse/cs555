@@ -1,4 +1,4 @@
-package cs555.a2.transport.events;
+package cs555.a2.transport.messenger;
 
 public class MessageReceived extends Event
 {
@@ -17,7 +17,7 @@ public class MessageReceived extends Event
 
     public boolean setMessage(Message msg)
     {
-        if (msg != null && this.msg != null) {
+        if (msg != null && this.msg == null) {
             this.msg = msg;
             return true;
         }

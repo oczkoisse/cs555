@@ -1,6 +1,6 @@
-package cs555.a2.transport;
+package cs555.a2.transport.messenger;
 
-import cs555.a2.transport.events.*;
+import cs555.a2.transport.*;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -16,9 +16,10 @@ public class Messenger
     private ExecutorCompletionService<Event> executorCompletionService;
     private Listener listener;
 
-    public Messenger(int listeningPort, int nThreads)
+    public Messenger(int listeningPort, int nThreadsForMessaging)
     {
-        this.executorService = Executors.newFixedThreadPool(nThreads);
+        // 1 extra for listening
+        this.executorService = Executors.newFixedThreadPool(nThreadsForMessaging + 1);
         this.executorCompletionService = new ExecutorCompletionService<>(executorService);
         this.listener = new Listener(listeningPort);
     }
@@ -104,10 +105,10 @@ public class Messenger
     public Event getEvent()
     {
         try {
-            Future<Event> e = executorCompletionService.take();
-            return e.get();
+            Future<Event> ev = executorCompletionService.take();
+            return ev.get();
         }
-        catch (InterruptedException | ExecutionException e)
+        catch(InterruptedException | ExecutionException ex)
         {
             return null;
         }
@@ -122,7 +123,7 @@ public class Messenger
             else
                 return null;
         }
-        catch(InterruptedException | ExecutionException e)
+        catch(InterruptedException | ExecutionException ex)
         {
             return null;
         }
@@ -140,7 +141,6 @@ public class Messenger
 
             }
         }
-
         executorService.shutdown();
     }
 }

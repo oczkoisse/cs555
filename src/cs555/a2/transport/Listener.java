@@ -3,15 +3,22 @@ package cs555.a2.transport;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.net.SocketException;
 
+/**
+ * Allows to listen for incoming connections. This is meant as a base class for creating higher
+ * level functionality (for example, a threaded listener).
+ */
 public class Listener  {
-
-	private static final Logger LOGGER = Logger.getLogger(Listener.class.getName());
 
 	private ServerSocket sock;
 
+	/**
+	 * Create a Listener instance to listen on {@code port}, reusing the port if {@code reuse} is {@code true}
+	 * @param port port number to listen on for incoming connections
+	 * @param reuse if {@code true}, the port is reused
+	 * @throws IllegalStateException if the {@code Listener} is unable to initialize the server socket
+	 */
 	public Listener(int port, boolean reuse)
 	{
 		try
@@ -20,34 +27,70 @@ public class Listener  {
 			if (reuse)
 				sock.setReuseAddress(reuse);
 		}
-		catch(IllegalArgumentException | IOException e)
+		catch(IllegalArgumentException e)
 		{
-			LOGGER.log(Level.SEVERE, e.toString(), e);
+			throw new IllegalStateException("Port number out of range");
+		}
+		catch(IOException e)
+		{
+			throw new IllegalStateException("Unable to initialize server socket at port " + port);
 		}
 	}
 
+	/**
+	 * Create a Listener instance to listen on {@code port} by reusing the port if needed
+	 * @param port port number to listen on for incoming connections
+	 * @throws IllegalStateException if the {@code Listener} is unable to initialize the server socket
+	 */
 	public Listener(int port)
 	{
 		this(port, false);
 	}
-	
+
+	/**
+	 * Create a Listener instance to listen on any available port, reusing it if needed
+	 * @throws IllegalStateException if the {@code Listener} is unable to initialize the server socket
+	 */
 	public Listener()
 	{
 		this(0);
 	}
 
+	/**
+	 * Accept a new connection. Waits until a new connection is received.
+	 * @return If successful, a {@code Socket} representing the new connection. Otherwise, {@code null} is returned
+	 * if {@coee Listener} is closed while still waiting.
+	 * @throws IOException if an I/O error occurs when waiting for a connection
+	 */
 	public Socket accept() throws IOException
     {
-        return sock.accept();
+    	try
+		{
+			return sock.accept();
+		}
+		catch(SocketException e)
+		{
+			// Means the Listener is closed
+			return null;
+		}
     }
 
-    public void close() throws IOException
+
+	/**
+	 * Closes the {@code Listener} instance.
+	 * @throws IOException if an I/O error occurs when closing the socket.
+	 */
+	public void close() throws IOException
     {
         if (!sock.isClosed())
             sock.close();
     }
 
-    public boolean isClosed()
+	/**
+	 * Check if the {@code Listener} is already closed
+	 * @return {@code true} if already closed, else {@code false}
+	 */
+	public boolean isClosed()
     {
         return sock.isClosed();
     }

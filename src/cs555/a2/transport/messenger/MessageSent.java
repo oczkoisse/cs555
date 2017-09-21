@@ -1,4 +1,4 @@
-package cs555.a2.transport.events;
+package cs555.a2.transport.messenger;
 
 public class MessageSent extends Event
 {
