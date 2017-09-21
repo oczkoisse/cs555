@@ -5,7 +5,7 @@ package cs555.a2.transport.messenger;
  */
 public abstract class Event
 {
-    Exception ex = null;
+    private Exception ex = null;
 
     /**
      * Returns the underlying enumeration type of this event
@@ -17,7 +17,7 @@ public abstract class Event
      * Returns {@code true} if there was some problem while generating the event, else {@code false}.
      * Use this before using the underlying information encapsulated in the event. If {@code true},
      * use {@link #getException()} to retrieve the excpetion which caused the event to fail.
-     * @return
+     * @return {@code true} if there was some problem while generating the event, else {@code false}
      */
     public final boolean causedException() {
         return ex != null;

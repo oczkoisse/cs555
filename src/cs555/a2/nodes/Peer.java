@@ -9,14 +9,15 @@ import java.util.concurrent.ExecutionException;
 
 public class Peer
 {
-    public static void main(String[] args) throws ExecutionException, InterruptedException
+    public static void main(String[] args) throws ExecutionException
     {
         Messenger m = new Messenger(44000, 4);
         m.listen();
+
+        eventLoop:
         while(true)
         {
             Event e = m.getEvent();
-
             if (!e.causedException())
             {
                 switch(e.getEventType())
@@ -35,6 +36,9 @@ public class Peer
                         Socket s = ((ConnectionReceived) e).getSocket();
                         m.receive(s);
                         break;
+                    case INTERRUPT_RECEIVED:
+                        m.stop();
+                        break eventLoop;
                 }
             }
             else
