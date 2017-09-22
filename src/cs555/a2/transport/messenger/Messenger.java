@@ -158,7 +158,7 @@ public class Messenger
      * Begins listening on the port specified when initializing this instance.
      * Once started, further calls have no effect.
      */
-    public void listen()
+    public synchronized void listen()
     {
         if (!listening)
         {

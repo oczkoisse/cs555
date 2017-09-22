@@ -3,10 +3,8 @@ package cs555.a2.hash;
 import java.util.zip.CRC32;
 import cs555.a2.util.ByteConverter;
 
-public final class CRC16 extends Hash
+public final class CRC16 implements Hash
 {
-    public static final int BYTES = 2;
-
     private CRC32 crc32 = new CRC32();
 
     public CRC16() {}
@@ -35,5 +33,8 @@ public final class CRC16 extends Hash
     {
         crc32.reset();
     }
+
+    @Override
+    public int size() { return 2; }
 
 }

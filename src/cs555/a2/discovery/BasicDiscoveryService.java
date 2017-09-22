@@ -1,36 +1,21 @@
 package cs555.a2.discovery;
 
+import cs555.a2.chord.PeerId;
 import cs555.a2.chord.PeerInfo;
 import cs555.a2.hash.Hash;
 
-import java.math.BigInteger;
 import java.util.Hashtable;
 import java.util.Random;
 
 public class BasicDiscoveryService implements DiscoveryService
 {
-    private Hashtable<BigInteger, PeerInfo> registeredPeers = new Hashtable<>();
+    private Hashtable<PeerId, PeerInfo> registeredPeers = new Hashtable<>();
     private Random rnd = new Random();
     private Hash hash;
 
     public BasicDiscoveryService(Hash hash)
     {
         this.hash = hash;
-    }
-
-    @Override
-    public boolean register(PeerInfo peerInfo)
-    {
-        if (!isRegistered(peerInfo)) {
-            registeredPeers.put(peerInfo.getId(), peerInfo);
-            return true;
-        }
-        return false;
-    }
-
-    private boolean isRegistered(PeerInfo peerInfo)
-    {
-        return registeredPeers.containsKey(peerInfo.getId());
     }
 
     @Override
@@ -43,7 +28,20 @@ public class BasicDiscoveryService implements DiscoveryService
         return (PeerInfo) registeredPeers.values().toArray()[randomIndex];
     }
 
-    @Override
+    public boolean register(PeerInfo peerInfo)
+    {
+        if (!isRegistered(peerInfo)) {
+            registeredPeers.put(peerInfo.getId(), peerInfo);
+            return true;
+        }
+        return false;
+    }
+
+    public boolean isRegistered(PeerInfo peerInfo)
+    {
+        return registeredPeers.containsKey(peerInfo.getId());
+    }
+
     public boolean deregister(PeerInfo peerInfo)
     {
         if (isRegistered(peerInfo)) {

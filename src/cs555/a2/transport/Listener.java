@@ -12,12 +12,10 @@ import java.net.SocketException;
 public class Listener  {
 
 	private ServerSocket sock;
-
 	/**
 	 * Create a Listener instance to listen on {@code port}, reusing the port if {@code reuse} is {@code true}
 	 * @param port port number to listen on for incoming connections
 	 * @param reuse if {@code true}, the port is reused
-	 * @throws IllegalStateException if the {@code Listener} is unable to initialize the server socket
 	 */
 	public Listener(int port, boolean reuse)
 	{
@@ -27,13 +25,9 @@ public class Listener  {
 			if (reuse)
 				sock.setReuseAddress(reuse);
 		}
-		catch(IllegalArgumentException e)
-		{
-			throw new IllegalStateException("Port number out of range");
-		}
 		catch(IOException e)
 		{
-			throw new IllegalStateException("Unable to initialize server socket at port " + port);
+			sock = null;
 		}
 	}
 
@@ -60,10 +54,13 @@ public class Listener  {
 	 * Accept a new connection. Waits until a new connection is received.
 	 * @return If successful, a {@code Socket} representing the new connection. Otherwise, {@code null} is returned
 	 * if {@coee Listener} is closed while still waiting.
+	 * @throws IllegalStateException if {@link Listener} is unable to initialize the server socket
 	 * @throws IOException if an I/O error occurs when waiting for a connection
 	 */
 	public Socket accept() throws IOException
     {
+    	if (sock == null)
+    		throw new IllegalStateException("accept() called on an uninitialized Listener");
     	try
 		{
 			return sock.accept();
@@ -82,7 +79,7 @@ public class Listener  {
 	 */
 	public void close() throws IOException
     {
-        if (!sock.isClosed())
+        if (sock != null && !sock.isClosed())
             sock.close();
     }
 
@@ -92,6 +89,6 @@ public class Listener  {
 	 */
 	public boolean isClosed()
     {
-        return sock.isClosed();
+    	return sock == null || sock.isClosed();
     }
 }
