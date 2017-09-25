@@ -1,5 +1,7 @@
 package cs555.a2.transport.messenger;
 
+import cs555.a2.transport.Message;
+
 /**
  * An {@link Event} representing that a new message has been received by {@link Messenger}
  */

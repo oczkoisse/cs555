@@ -1,4 +1,6 @@
-package cs555.a2.transport.messenger;
+package cs555.a2.transport;
+
+import cs555.a2.transport.messenger.Messenger;
 
 /**
  * Base interface for implementing messages for use by {@link Messenger}

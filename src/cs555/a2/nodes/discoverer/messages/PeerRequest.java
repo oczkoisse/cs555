@@ -7,16 +7,16 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class RegisterRequest implements Message<DiscoverMessageType>
+public class PeerRequest implements Message<DiscoverMessageType>
 {
     private PeerInfo source;
 
-    public RegisterRequest()
+    public PeerRequest()
     {
         this.source = null;
     }
 
-    public RegisterRequest(PeerInfo source)
+    public PeerRequest(PeerInfo source, PeerInfo peer)
     {
         this.source = source;
     }
@@ -24,14 +24,12 @@ public class RegisterRequest implements Message<DiscoverMessageType>
     @Override
     public DiscoverMessageType getMessageType()
     {
-        return DiscoverMessageType.REGISTER_REQUEST;
+        return DiscoverMessageType.PEER_REQUEST;
     }
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
-        if (this.source == null)
-            throw new IllegalStateException("Attempt to write RegisterRequest without initializing it");
         out.writeObject(source);
     }
 

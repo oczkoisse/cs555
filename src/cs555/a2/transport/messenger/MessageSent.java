@@ -14,4 +14,5 @@ public class MessageSent extends Event
     {
         return EventType.MESSAGE_SENT;
     }
+
 }

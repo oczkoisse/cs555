@@ -7,4 +7,9 @@ public interface Hash
     void reset();
     byte[] getValue();
     int size();
+
+    default int sizeInBits()
+    {
+        return size() * Byte.SIZE;
+    }
 }

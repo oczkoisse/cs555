@@ -1,7 +1,5 @@
 package cs555.a2.transport;
 
-import cs555.a2.transport.messenger.Message;
-
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.InetSocketAddress;
