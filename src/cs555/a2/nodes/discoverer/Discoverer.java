@@ -75,38 +75,44 @@ public class Discoverer
         messenger.receive(sock);
     }
 
+    private void handleRegisterRequestMsg(RegisterRequest msg)
+    {
+        LOGGER.log(Level.INFO, "Received REGISTER_REQUEST from " + msg.getSource().getListeningAddress());
+        boolean success = discoveryService.register(msg.getSource());
+        LOGGER.log(Level.INFO, success ? "Accepting" : "Rejecting");
+        messenger.send(new RegisterResponse(success), msg.getSource().getListeningAddress());
+    }
+
+    private void handleDeregisterRequestMsg(DeregisterRequest msg)
+    {
+        LOGGER.log(Level.INFO, "Received DEREGISTER_REQUEST from " + msg.getSource().getListeningAddress());
+        boolean success = discoveryService.deregister(msg.getSource());
+        LOGGER.log(Level.INFO, success ? "Accepting" : "Rejecting");
+        messenger.send(new DeregisterResponse(success), msg.getSource().getListeningAddress());
+    }
+
+    private void handlePeerRequestMsg(PeerRequest msg)
+    {
+        LOGGER.log(Level.INFO, "Received PEER_REQUEST from " + msg.getSource().getListeningAddress());
+        PeerResponse response = new PeerResponse(discoveryService.getAnyPeer(msg.getSource()));
+        messenger.send(response, msg.getSource().getListeningAddress());
+        LOGGER.log(Level.INFO, "Sending peer info");
+    }
+
     private void handleMessageReceivedEvent(MessageReceived ev)
     {
         Message msg = ev.getMessage();
         switch ((DiscoverMessageType) msg.getMessageType())
         {
             case REGISTER_REQUEST:
-            {
-                RegisterRequest request = (RegisterRequest) msg;
-                LOGGER.log(Level.INFO, "Received REGISTER_REQUEST from " + request.getSource().getListeningAddress());
-                boolean success = discoveryService.register(request.getSource());
-                LOGGER.log(Level.INFO, success ? "Accepting" : "Rejecting");
-                messenger.send(new RegisterResponse(success), request.getSource().getListeningAddress());
+                handleRegisterRequestMsg((RegisterRequest) msg);
                 break;
-            }
             case DEREGISTER_REQUEST:
-            {
-                DeregisterRequest request = (DeregisterRequest) msg;
-                LOGGER.log(Level.INFO, "Received DEREGISTER_REQUEST from " + request.getSource().getListeningAddress());
-                boolean success = discoveryService.deregister(request.getSource());
-                LOGGER.log(Level.INFO, success ? "Accepting" : "Rejecting");
-                messenger.send(new DeregisterResponse(success), request.getSource().getListeningAddress());
+                handleDeregisterRequestMsg((DeregisterRequest) msg);
                 break;
-            }
             case PEER_REQUEST:
-            {
-                PeerRequest request = (PeerRequest) msg;
-                LOGGER.log(Level.INFO, "Received PEER_REQUEST from " + request.getSource().getListeningAddress());
-                PeerResponse response = new PeerResponse(discoveryService.getAnyPeer(request.getSource()));
-                messenger.send(response, request.getSource().getListeningAddress());
-                LOGGER.log(Level.INFO, "Sending peer info");
+                handlePeerRequestMsg((PeerRequest) msg);
                 break;
-            }
         }
     }
 

@@ -46,6 +46,16 @@ public class Messenger
         this.listening = false;
     }
 
+    public Messenger(int nThreadsForSending)
+    {
+        if (nThreadsForSending < 1)
+            throw new IllegalArgumentException("Number of threads passed to Messenger must be >= 1");
+        this.executorService = Executors.newFixedThreadPool(nThreadsForSending);
+        this.executorCompletionService = new ExecutorCompletionService<>(executorService);
+        this.listener = null;
+        this.listening = false;
+    }
+
     /**
      * Synchronously sends a message and wraps it into an {@link MessageSent} event for use by thread pool
      * @param msg Message to be sent
@@ -160,6 +170,9 @@ public class Messenger
      */
     public synchronized void listen()
     {
+        if (listener == null)
+            throw new IllegalStateException("listen() called on Messenger instance that can only send messages");
+
         if (!listening)
         {
             this.executorCompletionService.submit(this::tryAccept);
