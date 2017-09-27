@@ -23,7 +23,7 @@ public class LookupResult implements Message<ChordMessageType>
 
     public LookupResult()
     {
-        this.successor = null;
+        this.successor = PeerInfo.NULL_PEER;
         this.lookedUpID = null;
         this.cause = null;
     }
@@ -37,6 +37,12 @@ public class LookupResult implements Message<ChordMessageType>
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
+        if (this.successor == PeerInfo.NULL_PEER)
+            throw new IllegalStateException("Attempt to write with successor set to NULL_PEER");
+        if (this.lookedUpID == null)
+            throw new IllegalStateException("Attempt to write with ID set to null");
+        if (this.cause == null)
+            throw new IllegalStateException("Attempt to write with cause set to null");
         out.writeObject(successor);
         out.writeObject(lookedUpID);
         out.writeObject(cause);

@@ -19,7 +19,7 @@ public class LookupRequest implements Message<ChordMessageType>
     {
         this.idToBeLookedUp = null;
         this.hopCount = 0;
-        this.source = null;
+        this.source = PeerInfo.NULL_PEER;
         this.cause = null;
     }
 
@@ -40,6 +40,13 @@ public class LookupRequest implements Message<ChordMessageType>
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
+        if (this.source == PeerInfo.NULL_PEER)
+            throw new IllegalStateException("Attempt to write with source set to NULL_PEER");
+        if (this.idToBeLookedUp == null)
+            throw new IllegalStateException("Attempt to write with ID set to null");
+        if (this.cause == null)
+            throw new IllegalStateException("Attempt to write with cause set to null");
+
         out.writeObject(idToBeLookedUp);
         out.writeInt(hopCount);
         out.writeObject(source);

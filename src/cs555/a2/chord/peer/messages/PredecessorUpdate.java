@@ -13,7 +13,7 @@ public class PredecessorUpdate implements Message<ChordMessageType>
 
     public PredecessorUpdate()
     {
-        this.latestPredecessor = null;
+        this.latestPredecessor = PeerInfo.NULL_PEER;
     }
 
     public PredecessorUpdate(PeerInfo predecessor)
@@ -30,8 +30,8 @@ public class PredecessorUpdate implements Message<ChordMessageType>
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
-        if (this.latestPredecessor == null)
-            throw new IllegalStateException("");
+        if (this.latestPredecessor == PeerInfo.NULL_PEER)
+            throw new IllegalStateException("Attempt to write with predecessor set to NULL_PEER");
         out.writeObject(this.latestPredecessor);
     }
 

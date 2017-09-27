@@ -13,7 +13,7 @@ public class PredecessorRequest implements Message<ChordMessageType>
     private PeerInfo source;
 
     public PredecessorRequest() {
-        this.source = null;
+        this.source = PeerInfo.NULL_PEER;
     }
 
     public PredecessorRequest(PeerInfo source)
@@ -30,6 +30,8 @@ public class PredecessorRequest implements Message<ChordMessageType>
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
+        if (this.source == PeerInfo.NULL_PEER)
+            throw new IllegalStateException("Attempt to write with source set to NULL_PEER");
         out.writeObject(source);
     }
 

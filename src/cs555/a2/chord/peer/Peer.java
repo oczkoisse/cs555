@@ -204,12 +204,27 @@ public abstract class Peer implements Runnable
     {
         ownShutdown();
 
+        // Send out a last gasp if needed
+        synchronized (predecessor)
+        {
+            synchronized (fingerTable)
+            {
+                PeerInfo pred = getPredecessor();
+                PeerInfo succ = getSuccessor();
+                if (pred != PeerInfo.NULL_PEER && succ != PeerInfo.NULL_PEER)
+                {
+                    LastGasp msg = new LastGasp(pred, succ);
+                    messenger.send(msg, pred.getListeningAddress());
+                    messenger.send(msg, succ.getListeningAddress());
+                }
+            }
+        }
+
         LOGGER.log(Level.INFO, "Shutting down the Chord layer");
         try
         {
             LOGGER.log(Level.INFO, "Waiting for 2 seconds for messaging to finish");
             messenger.stop(2);
-
         }
         catch(InterruptedException ex)
         {
@@ -286,6 +301,9 @@ public abstract class Peer implements Runnable
                 case LOOKUP_RESULT:
                     handleLookupResultMsg((LookupResult) msg);
                     break;
+                case LAST_GASP:
+                    handleLastGaspMsg((LastGasp) msg);
+                    break;
             }
         }
         else
@@ -294,18 +312,55 @@ public abstract class Peer implements Runnable
         }
     }
 
+    private void handleLastGaspMsg(LastGasp msg)
+    {
+        PeerInfo pred = msg.getPredecessor();
+        PeerInfo succ = msg.getSuccessor();
+
+        if (pred.getID().compareTo(ownInfo.getID()) == 0)
+        {
+            setSuccessor(succ);
+        }
+        else if (succ.getID().compareTo(ownInfo.getID()) == 0)
+        {
+            setPredecessor(pred);
+        }
+    }
+
     private void handleFailedEvent(Event ev)
     {
         if (ev.getEventType() == EventType.MESSAGE_SENT)
         {
-            Message msg = ((MessageSent) ev).getMessage();
-            if (msg.getMessageType() instanceof ChordMessageType)
+            MessageSent msev= ((MessageSent) ev);
+            if (msev.getMessage().getMessageType() instanceof ChordMessageType)
             {
-                switch ((ChordMessageType) msg.getMessageType()) {
+                switch ((ChordMessageType) msev.getMessage().getMessageType()) {
                     case LOOKUP_REQUEST:
-                        break;
+                    {
+                        LookupRequest r = (LookupRequest) msev.getMessage();
+                        switch (r.getCause())
+                        {
+                            case FINGER_UPDATE:
+                            case NEW_NODE:
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                     case PRED_REQUEST:
-                        setSuccessor(PeerInfo.NULL_PEER);
+                        synchronized (fingerTable)
+                        {
+                            ID succID = getSuccessor().getID();
+                            for(int k=0; k<fingerTable.size(); k++)
+                            {
+                                if(fingerTable.getPeerInfo(k).getID().compareTo(succID) == 0)
+                                {
+                                    fingerTable.setPeerInfo(k, PeerInfo.NULL_PEER);
+                                }
+                                else
+                                    break;
+                            };
+                        }
                         break;
                     default:
                         break;
