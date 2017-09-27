@@ -75,4 +75,11 @@ public class LookupRequest implements Message<ChordMessageType>
     {
         return cause;
     }
+
+    @Override
+    public String toString()
+    {
+        return getMessageType() + ": Hop " + hopCount + ", ID: " + idToBeLookedUp +
+                ", Source: " + source;
+    }
 }

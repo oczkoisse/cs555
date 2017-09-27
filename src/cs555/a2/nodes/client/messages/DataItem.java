@@ -83,7 +83,7 @@ public class DataItem implements Message<ClientMessageType>
         this.pathToFile = null;
         this.hash = new CRC16();
         this.id = null;
-        this.dummy = false;
+        this.dummy = true;
     }
 
     @Override
@@ -137,6 +137,8 @@ public class DataItem implements Message<ClientMessageType>
             }
 
             assert this.id.compareTo(new ID(new BigInteger(hash.getValue()), hash.size())) == 0;
+
+            hash.reset();
         }
     }
 

@@ -185,6 +185,7 @@ public abstract class Peer implements Runnable
 
     private void handleLookupRequestMsg(LookupRequest msg)
     {
+        LOGGER.log(Level.INFO, msg.toString());
         lookup(msg);
     }
 
@@ -266,6 +267,7 @@ public abstract class Peer implements Runnable
     private void handleMessageReceivedEvent(MessageReceived ev)
     {
         Message msg = ev.getMessage();
+        LOGGER.log(Level.INFO, "Received message: " + msg.getMessageType());
         if (msg.getMessageType() instanceof ChordMessageType)
         {
             switch((ChordMessageType) msg.getMessageType())
@@ -299,7 +301,10 @@ public abstract class Peer implements Runnable
                 if (msg.getMessageType() instanceof ChordMessageType) {
                     switch ((ChordMessageType) msg.getMessageType()) {
                         case LOOKUP_REQUEST:
+                        {
+
                             break;
+                        }
                         case PRED_REQUEST:
                             setSuccessor(PeerInfo.NULL_PEER);
                             break;

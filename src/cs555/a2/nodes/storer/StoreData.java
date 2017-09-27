@@ -132,7 +132,7 @@ public class StoreData implements Runnable
                     DataItem d = null;
                     if (dummy)
                     {
-                        d = new DataItem(filePath, new ID(id, 4));
+                        d = new DataItem(filePath, new ID(id, 2));
                     }
                     else
                     {
@@ -169,6 +169,7 @@ public class StoreData implements Runnable
                     {
                         send(d, r.getSuccessor().getListeningAddress());
                         LOGGER.log(Level.INFO, "Sent the data item " + d.getFilePath());
+                        send(new PeerRequest(getOwnInfo()), discoveryAddress);
                     }
                     else
                     {

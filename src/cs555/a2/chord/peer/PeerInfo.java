@@ -103,4 +103,13 @@ public class PeerInfo implements Externalizable
         ID id = new ID(new BigInteger(hash.randomHash()), hash.size());
         return new PeerInfo(id, new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort));
     }
+
+    @Override
+    public String toString()
+    {
+        if (isNotInitialized())
+            return "PeerInfo: NULL_PEER";
+        else
+            return "PeerInfo: " + name + ", " + id + ", " + listeningAddress;
+    }
 }
