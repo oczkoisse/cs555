@@ -1,7 +1,6 @@
 package cs555.a2.nodes.client;
 
 import cs555.a2.chord.peer.*;
-import cs555.a2.chord.peer.messages.LookupResult;
 import cs555.a2.hash.*;
 import cs555.a2.nodes.client.messages.ClientMessageType;
 import cs555.a2.nodes.client.messages.DataItem;

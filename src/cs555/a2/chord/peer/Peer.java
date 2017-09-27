@@ -60,43 +60,25 @@ public abstract class Peer implements Runnable
 
     private void lookup(LookupRequest msg)
     {
-        PeerInfo pred = lookupPredecessorOf(msg.getID());
-        // Query dies if not enough info is there
-        if (pred == PeerInfo.NULL_PEER)
-            return;
+        synchronized(fingerTable) {
+            PeerInfo pred = getClosestNodePrecedingId(msg.getID());
+            // Query dies if not enough info is there
+            if (pred == PeerInfo.NULL_PEER)
+                return;
 
-        if (pred.getID().compareTo(ownInfo.getID()) == 0)
-            send(new LookupResult(getSuccessor(), msg), msg.getSource().getListeningAddress());
-        else
-            send(msg, pred.getListeningAddress());
-    }
-
-    private PeerInfo lookupPredecessorOf(ID id)
-    {
-        if (isPredecessorOf(id))
-            return ownInfo;
-        else
-            return getClosestNodePrecedingId(id);
-    }
-
-    private boolean isPredecessorOf(ID id)
-    {
-        if (id == null)
-            return false;
-
-        synchronized (fingerTable) {
-            PeerInfo successor = getSuccessor();
-            if (successor == PeerInfo.NULL_PEER)
-                return false;
-
-            ID ownID = ownInfo.getID();
-            return id.compareTo(successor.getID()) == 0 || id.inInterval(ownID, successor.getID());
+            if (pred.getID().compareTo(ownInfo.getID()) == 0)
+                send(new LookupResult(getSuccessor(), msg), msg.getSource().getListeningAddress());
+            else
+                send(msg, pred.getListeningAddress());
         }
     }
 
     // Returning NULL_PEER means any query that depends on its outcome will die
     private PeerInfo getClosestNodePrecedingId(ID id)
     {
+        if (id == null)
+            return PeerInfo.NULL_PEER;
+
         synchronized(fingerTable)
         {
             // Start at the bottom of the finger table
@@ -179,7 +161,7 @@ public abstract class Peer implements Runnable
         }
         else
         {
-            LOGGER.log(Level.WARNING, "Peer received a LOOKUP_RESULT with cause set to NEW_DATA!");
+            LOGGER.log(Level.WARNING, "Peer received a LOOKUP_RESULT with cause NEW_DATA!");
         }
     }
 
@@ -284,6 +266,9 @@ public abstract class Peer implements Runnable
                 case PRED_UPDATE:
                     handlePredUpdateMsg((PredecessorUpdate) msg);
                     break;
+                case LOOKUP_RESULT:
+                    handleLookupResultMsg((LookupResult) msg);
+                    break;
             }
         }
         else
@@ -349,16 +334,19 @@ public abstract class Peer implements Runnable
 
     public void lookup(ID id, LookupCause cause)
     {
-        PeerInfo pred = lookupPredecessorOf(id);
-        // Query dies if enough info is not there
-        if (pred == PeerInfo.NULL_PEER)
-            return;
+        synchronized (fingerTable) {
+            PeerInfo pred = getClosestNodePrecedingId(id);
+            // Query dies if not enough info is there
+            if (pred == PeerInfo.NULL_PEER)
+                return;
 
-        LookupRequest msg = new LookupRequest(id, ownInfo, cause);
-        if (pred.getID().compareTo(ownInfo.getID()) == 0)
-            send(new LookupResult(getSuccessor(), msg), ownInfo.getListeningAddress());
-        else
-            send(msg, pred.getListeningAddress());
+            LookupRequest msg = new LookupRequest(id, ownInfo, cause);
+
+            if (pred.getID().compareTo(ownInfo.getID()) == 0)
+                send(new LookupResult(getSuccessor(), msg), ownInfo.getListeningAddress());
+            else
+                send(msg, pred.getListeningAddress());
+        }
     }
 
     public synchronized void join(PeerInfo anotherPeer)
