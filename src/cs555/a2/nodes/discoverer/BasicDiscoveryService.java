@@ -14,10 +14,10 @@ public class BasicDiscoveryService implements DiscoveryService
     private Random rnd = new Random();
 
     @Override
-    public PeerInfo getAnyPeer(PeerInfo source)
+    public synchronized PeerInfo getAnyPeer(PeerInfo source)
     {
         if (registeredPeers.size() == 0)
-            throw new IllegalStateException("getAnyPeer() called when no nodes are registered with discovery service");
+            return null;
 
         PeerInfo result;
         do
@@ -33,7 +33,7 @@ public class BasicDiscoveryService implements DiscoveryService
         return result;
     }
 
-    public boolean register(PeerInfo peerInfo)
+    public synchronized boolean register(PeerInfo peerInfo)
     {
         if (!isRegistered(peerInfo)) {
             registeredPeers.put(peerInfo.getID(), peerInfo);
@@ -42,12 +42,12 @@ public class BasicDiscoveryService implements DiscoveryService
         return false;
     }
 
-    public boolean isRegistered(PeerInfo peerInfo)
+    public synchronized boolean isRegistered(PeerInfo peerInfo)
     {
         return registeredPeers.containsKey(peerInfo.getID());
     }
 
-    public boolean deregister(PeerInfo peerInfo)
+    public synchronized boolean deregister(PeerInfo peerInfo)
     {
         if (isRegistered(peerInfo)) {
             registeredPeers.remove(peerInfo.getID());

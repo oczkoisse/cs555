@@ -91,6 +91,9 @@ public class ID implements Externalizable
 
     public boolean inInterval(ID end1, ID end2, boolean inclusive)
     {
+        if (end1 == null || end2 == null)
+            throw new IllegalArgumentException("Endpoints can't be null");
+
         if (end1.size() != end2.size())
             throw new IllegalArgumentException("Endpoint IDs do not have matching sizes");
         else if (end1.size() != this.size())
@@ -130,5 +133,25 @@ public class ID implements Externalizable
         if (this.id == null)
             throw new IllegalStateException("toString() called on an uninitialized ID");
         return this.id.toString(16);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        ID id1 = (ID) o;
+
+        if (size != id1.size) return false;
+        return id != null ? id.equals(id1.id) : id1.id == null;
+    }
+
+    @Override
+    public int hashCode()
+    {
+        int result = id != null ? id.hashCode() : 0;
+        result = 31 * result + size;
+        return result;
     }
 }

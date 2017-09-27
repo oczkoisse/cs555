@@ -2,12 +2,30 @@ package cs555.a2.transport.messenger;
 
 import cs555.a2.transport.Message;
 
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
 /**
  * An {@link Event} representing that a new message has been received by {@link Messenger}
  */
 public class MessageReceived extends Event
 {
     private Message msg = null;
+    private InetSocketAddress source = null;
+
+    MessageReceived(InetSocketAddress source)
+    {
+        if (source == null)
+            throw new IllegalArgumentException("Passed source address can't be null in a MessageReceived event");
+        this.source = source;
+    }
+
+    MessageReceived(Socket sock)
+    {
+        if (sock == null)
+            throw new IllegalArgumentException("Passed socket can't be null in a MessageReceived event");
+        this.source = new InetSocketAddress(sock.getInetAddress().getHostAddress(), sock.getPort());
+    }
 
     /**
      * Returns the event type
@@ -19,26 +37,31 @@ public class MessageReceived extends Event
         return EventType.MESSAGE_RECEIVED;
     }
 
+    boolean setMessage(Message msg)
+    {
+        if (msg == null)
+            throw new IllegalArgumentException("null Message passed to setMessage()");
+        if (this.msg == null)
+        {
+            this.msg = msg;
+            return true;
+        }
+        return false;
+    }
+
     /**
      * Retrives the received message
      * @return {@link Message} representing the received message
      */
     public Message getMessage()
     {
+        if (this.msg == null)
+            throw new IllegalStateException("getMessage() called on a MessageReceived event with no set message");
         return msg;
     }
 
-    /**
-     * Set the {@link Message} information in the event
-     * @param msg the {@link Message} representing the received message
-     * @return {@code true} if {@code msg} is not null,  and no {@link Message} was set previously, else {@code false}
-     */
-    boolean setMessage(Message msg)
+    public InetSocketAddress getSource()
     {
-        if (msg != null && this.msg == null) {
-            this.msg = msg;
-            return true;
-        }
-        return false;
+        return source;
     }
 }

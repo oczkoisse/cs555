@@ -1,6 +1,6 @@
 package cs555.a2.nodes.discoverer.messages;
 
-public enum DiscoverMessageType
+public enum DiscovererMessageType
 {
     REGISTER_REQUEST,
     DEREGISTER_REQUEST,

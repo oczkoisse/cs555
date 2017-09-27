@@ -13,27 +13,22 @@ public class LookupRequest implements Message<ChordMessageType>
     private ID idToBeLookedUp;
     private int hopCount;
     private PeerInfo source;
-    private boolean causedByJoin;
+    private LookupCause cause;
 
     public LookupRequest()
     {
         this.idToBeLookedUp = null;
         this.hopCount = 0;
         this.source = null;
-        this.causedByJoin = false;
+        this.cause = null;
     }
 
-    public LookupRequest(ID id, PeerInfo source, boolean causedByJoin)
+    public LookupRequest(ID id, PeerInfo source, LookupCause cause)
     {
         this.idToBeLookedUp = id;
         this.hopCount = 0;
         this.source = source;
-        this.causedByJoin = causedByJoin;
-    }
-
-    public LookupRequest(ID id, PeerInfo source)
-    {
-        this(id, source, false);
+        this.cause = cause;
     }
 
     @Override
@@ -48,7 +43,7 @@ public class LookupRequest implements Message<ChordMessageType>
         out.writeObject(idToBeLookedUp);
         out.writeInt(hopCount);
         out.writeObject(source);
-        out.writeBoolean(causedByJoin);
+        out.writeObject(cause);
     }
 
     @Override
@@ -58,7 +53,7 @@ public class LookupRequest implements Message<ChordMessageType>
         this.hopCount = in.readInt();
         this.hopCount++;
         this.source = (PeerInfo) in.readObject();
-        this.causedByJoin = in.readBoolean();
+        this.cause = (LookupCause) in.readObject();
     }
 
     public ID getID()
@@ -76,8 +71,8 @@ public class LookupRequest implements Message<ChordMessageType>
         return source;
     }
 
-    public boolean isCausedByJoin()
+    public LookupCause getCause()
     {
-        return causedByJoin;
+        return cause;
     }
 }

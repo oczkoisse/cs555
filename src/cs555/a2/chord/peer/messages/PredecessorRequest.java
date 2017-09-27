@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
+// Should only be sent to successor
 public class PredecessorRequest implements Message<ChordMessageType>
 {
     private PeerInfo source;
@@ -36,5 +37,9 @@ public class PredecessorRequest implements Message<ChordMessageType>
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
     {
         this.source = (PeerInfo) in.readObject();
+    }
+
+    public PeerInfo getSource() {
+        return source;
     }
 }

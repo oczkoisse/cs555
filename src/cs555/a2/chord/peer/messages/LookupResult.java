@@ -12,20 +12,20 @@ public class LookupResult implements Message<ChordMessageType>
 {
     private PeerInfo successor;
     private ID lookedUpID;
-    private boolean causedByJoin;
+    private LookupCause cause;
 
     public LookupResult(PeerInfo successor, LookupRequest request)
     {
         this.successor = successor;
         this.lookedUpID = request.getID();
-        this.causedByJoin = request.isCausedByJoin();
+        this.cause = request.getCause();
     }
 
     public LookupResult()
     {
         this.successor = null;
         this.lookedUpID = null;
-        this.causedByJoin = false;
+        this.cause = null;
     }
 
     @Override
@@ -39,7 +39,7 @@ public class LookupResult implements Message<ChordMessageType>
     {
         out.writeObject(successor);
         out.writeObject(lookedUpID);
-        out.writeBoolean(causedByJoin);
+        out.writeObject(cause);
     }
 
     @Override
@@ -47,7 +47,7 @@ public class LookupResult implements Message<ChordMessageType>
     {
         this.successor = (PeerInfo) in.readObject();
         this.lookedUpID = (ID) in.readObject();
-        this.causedByJoin = in.readBoolean();
+        this.cause = (LookupCause) in.readObject();
     }
 
     public PeerInfo getSuccessor()
@@ -60,8 +60,8 @@ public class LookupResult implements Message<ChordMessageType>
         return lookedUpID;
     }
 
-    public boolean isCausedByJoin()
+    public LookupCause getCause()
     {
-        return causedByJoin;
+        return cause;
     }
 }

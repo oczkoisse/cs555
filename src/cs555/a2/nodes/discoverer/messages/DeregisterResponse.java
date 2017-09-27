@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class DeregisterResponse implements Message<DiscoverMessageType>
+public class DeregisterResponse implements Message<DiscovererMessageType>
 {
     private boolean success;
 
@@ -21,9 +21,9 @@ public class DeregisterResponse implements Message<DiscoverMessageType>
     }
 
     @Override
-    public DiscoverMessageType getMessageType()
+    public DiscovererMessageType getMessageType()
     {
-        return DiscoverMessageType.DEREGISTER_RESPONSE;
+        return DiscovererMessageType.DEREGISTER_RESPONSE;
     }
 
     @Override

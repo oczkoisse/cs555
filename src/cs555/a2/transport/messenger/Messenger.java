@@ -64,14 +64,14 @@ public class Messenger
      */
     private static MessageSent trySend(Message msg, InetSocketAddress destination)
     {
-        MessageSent ev = new MessageSent();
+        MessageSent ev = new MessageSent(msg, destination);
         try
         {
             Sender.send(msg, destination);
         }
-        catch (IOException e)
+        catch (IOException ex)
         {
-            ev.setException(e);
+            ev.setException(ex);
         }
         return ev;
     }
@@ -84,7 +84,7 @@ public class Messenger
      */
     private static MessageReceived tryReceive(InetSocketAddress source)
     {
-        MessageReceived ev = new MessageReceived();
+        MessageReceived ev = new MessageReceived(source);
         try
         {
             ev.setMessage(Receiver.receive(source));
@@ -103,7 +103,7 @@ public class Messenger
      */
     private static MessageReceived tryReceive(Socket sock)
     {
-        MessageReceived ev = new MessageReceived();
+        MessageReceived ev = new MessageReceived(sock);
         try
         {
             ev.setMessage(Receiver.receive(sock));
@@ -124,11 +124,14 @@ public class Messenger
         ConnectionReceived ev = new ConnectionReceived();
         try {
             ev.setSocket(listener.accept());
-            listen();
         }
         catch (IOException ex)
         {
             ev.setException(ex);
+        }
+        finally
+        {
+            this.executorCompletionService.submit(this::tryAccept);
         }
         return ev;
     }
@@ -141,7 +144,10 @@ public class Messenger
      */
     public void send(Message msg, InetSocketAddress destination)
     {
-        this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
+        if (msg != null)
+            this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
+        else
+            LOGGER.log(Level.WARNING, "Ignored a request to send a null message");
     }
 
     /**
@@ -168,7 +174,7 @@ public class Messenger
      * Begins listening on the port specified when initializing this instance.
      * Once started, further calls have no effect.
      */
-    public synchronized void listen()
+    public void listen()
     {
         if (listener == null)
             throw new IllegalStateException("listen() called on Messenger instance that can only send messages");

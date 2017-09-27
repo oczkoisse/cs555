@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class PeerResponse implements Message<DiscoverMessageType>
+public class PeerResponse implements Message<DiscovererMessageType>
 {
     PeerInfo peer;
 
@@ -22,9 +22,9 @@ public class PeerResponse implements Message<DiscoverMessageType>
     }
 
     @Override
-    public DiscoverMessageType getMessageType()
+    public DiscovererMessageType getMessageType()
     {
-        return DiscoverMessageType.PEER_RESPONSE;
+        return DiscovererMessageType.PEER_RESPONSE;
     }
 
     @Override
@@ -37,5 +37,10 @@ public class PeerResponse implements Message<DiscoverMessageType>
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
     {
         this.peer = (PeerInfo) in.readObject();
+    }
+
+    public PeerInfo getPeer()
+    {
+        return peer;
     }
 }

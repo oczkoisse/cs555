@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class DeregisterRequest implements Message<DiscoverMessageType>
+public class DeregisterRequest implements Message<DiscovererMessageType>
 {
     private PeerInfo source;
 
@@ -22,9 +22,9 @@ public class DeregisterRequest implements Message<DiscoverMessageType>
     }
 
     @Override
-    public DiscoverMessageType getMessageType()
+    public DiscovererMessageType getMessageType()
     {
-        return DiscoverMessageType.DEREGISTER_REQUEST;
+        return DiscovererMessageType.DEREGISTER_REQUEST;
     }
 
     @Override

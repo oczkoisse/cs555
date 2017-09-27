@@ -20,6 +20,7 @@ public class ByteConverter
     {
         converter.clear();
         converter.putLong(val);
+        converter.position(0);
         byte[] out = new byte[Long.BYTES];
         converter.get(out);
         return out;
@@ -34,6 +35,7 @@ public class ByteConverter
     {
         converter.clear();
         converter.putInt(val);
+        converter.position(0);
         byte[] out = new byte[Integer.BYTES];
         converter.get(out);
         return out;
@@ -48,6 +50,7 @@ public class ByteConverter
     {
         converter.clear();
         converter.putShort(val);
+        converter.position(0);
         byte[] out = new byte[Short.BYTES];
         converter.get(out);
         return out;

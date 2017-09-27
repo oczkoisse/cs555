@@ -1,10 +1,16 @@
 package cs555.a2.chord.peer;
 
+import cs555.a2.hash.Hash;
+
 import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.math.BigInteger;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
+import java.util.Date;
 
 /**
  * PeerInfo encapsulates information about a peer that is relevant to Chord
@@ -16,6 +22,8 @@ public class PeerInfo implements Externalizable
     private ID id;
     private InetSocketAddress listeningAddress;
     private String name;
+
+    public static final PeerInfo NULL_PEER = new PeerInfo();
 
     public PeerInfo(ID id, InetSocketAddress listeningAddress, String name)
     {
@@ -70,7 +78,7 @@ public class PeerInfo implements Externalizable
             throw new IllegalStateException("Attempt to write PeerInfo without initializing it");
         out.writeObject(this.id);
         out.writeUTF(this.listeningAddress.getHostString());
-        out.write(this.listeningAddress.getPort());
+        out.writeInt(this.listeningAddress.getPort());
         out.writeUTF(this.name);
     }
 
@@ -82,5 +90,17 @@ public class PeerInfo implements Externalizable
         int port = in.readInt();
         this.listeningAddress = new InetSocketAddress(hostString, port);
         this.name = in.readUTF();
+    }
+
+    public static PeerInfo generatePeerInfo(Hash hash, int listeningPort, String name) throws UnknownHostException
+    {
+        ID id = new ID(new BigInteger(hash.randomHash()), hash.size());
+        return new PeerInfo(id, new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort), name);
+    }
+
+    public static PeerInfo generatePeerInfo(Hash hash, int listeningPort) throws UnknownHostException
+    {
+        ID id = new ID(new BigInteger(hash.randomHash()), hash.size());
+        return new PeerInfo(id, new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort));
     }
 }

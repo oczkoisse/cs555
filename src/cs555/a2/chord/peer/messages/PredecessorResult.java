@@ -38,4 +38,9 @@ public class PredecessorResult implements Message<ChordMessageType>
     {
         this.predecessor = (PeerInfo) in.readObject();
     }
+
+    public PeerInfo getPredecessor()
+    {
+        return predecessor;
+    }
 }

@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class RegisterRequest implements Message<DiscoverMessageType>
+public class RegisterRequest implements Message<DiscovererMessageType>
 {
     private PeerInfo source;
 
@@ -22,9 +22,9 @@ public class RegisterRequest implements Message<DiscoverMessageType>
     }
 
     @Override
-    public DiscoverMessageType getMessageType()
+    public DiscovererMessageType getMessageType()
     {
-        return DiscoverMessageType.REGISTER_REQUEST;
+        return DiscovererMessageType.REGISTER_REQUEST;
     }
 
     @Override

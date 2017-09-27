@@ -32,13 +32,13 @@ public class Listener  {
 	}
 
 	/**
-	 * Create a Listener instance to listen on {@code port} by reusing the port if needed
+	 * Create a Listener instance to listen on {@code port}, reusing the port if needed
 	 * @param port port number to listen on for incoming connections
 	 * @throws IllegalStateException if the {@code Listener} is unable to initialize the server socket
 	 */
 	public Listener(int port)
 	{
-		this(port, false);
+		this(port, true);
 	}
 
 	/**

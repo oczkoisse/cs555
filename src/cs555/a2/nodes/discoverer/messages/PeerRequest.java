@@ -7,7 +7,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class PeerRequest implements Message<DiscoverMessageType>
+public class PeerRequest implements Message<DiscovererMessageType>
 {
     private PeerInfo source;
 
@@ -16,15 +16,15 @@ public class PeerRequest implements Message<DiscoverMessageType>
         this.source = null;
     }
 
-    public PeerRequest(PeerInfo source, PeerInfo peer)
+    public PeerRequest(PeerInfo source)
     {
         this.source = source;
     }
 
     @Override
-    public DiscoverMessageType getMessageType()
+    public DiscovererMessageType getMessageType()
     {
-        return DiscoverMessageType.PEER_REQUEST;
+        return DiscovererMessageType.PEER_REQUEST;
     }
 
     @Override

@@ -1,5 +1,6 @@
 package cs555.a2.nodes.discoverer;
 
+import cs555.a2.chord.peer.PeerInfo;
 import cs555.a2.nodes.discoverer.messages.*;
 import cs555.a2.transport.Message;
 import cs555.a2.transport.messenger.*;
@@ -18,19 +19,25 @@ public class Discoverer
 
     public Discoverer(int listeningPort)
     {
-        messenger = new Messenger(listeningPort, 1);
+        messenger = new Messenger(listeningPort, 4);
+    }
+
+    private void listen()
+    {
+        messenger.listen();
+        LOGGER.log(Level.INFO, "Begin listening for new connections...");
     }
 
     public void run()
     {
         LOGGER.log(Level.INFO, "Starting up the Discovery node");
-        messenger.listen();
 
-        LOGGER.log(Level.INFO, "Begin listening for new connections...");
+        listen();
 
         while(true)
         {
             try {
+                LOGGER.log(Level.FINE, "Waiting for next event");
                 Event ev = messenger.getEvent();
                 LOGGER.log(Level.FINE, "Received an event");
                 if (!ev.causedException())
@@ -55,8 +62,10 @@ public class Discoverer
                 break;
             case MESSAGE_RECEIVED:
                 handleMessageReceivedEvent((MessageReceived) ev);
+                break;
             case MESSAGE_SENT:
                 handleMessageSentEvent((MessageSent) ev);
+                break;
             case CONNECTION_RECEIVED:
                 handleConnectionReceivedEvent((ConnectionReceived) ev);
                 break;
@@ -73,6 +82,23 @@ public class Discoverer
         Socket sock = ev.getSocket();
         LOGGER.log(Level.INFO, "Received a new connection request from " + sock.getInetAddress());
         messenger.receive(sock);
+    }
+
+    private void handleMessageReceivedEvent(MessageReceived ev)
+    {
+        Message msg = ev.getMessage();
+        switch ((DiscovererMessageType) msg.getMessageType())
+        {
+            case REGISTER_REQUEST:
+                handleRegisterRequestMsg((RegisterRequest) msg);
+                break;
+            case DEREGISTER_REQUEST:
+                handleDeregisterRequestMsg((DeregisterRequest) msg);
+                break;
+            case PEER_REQUEST:
+                handlePeerRequestMsg((PeerRequest) msg);
+                break;
+        }
     }
 
     private void handleRegisterRequestMsg(RegisterRequest msg)
@@ -94,26 +120,14 @@ public class Discoverer
     private void handlePeerRequestMsg(PeerRequest msg)
     {
         LOGGER.log(Level.INFO, "Received PEER_REQUEST from " + msg.getSource().getListeningAddress());
-        PeerResponse response = new PeerResponse(discoveryService.getAnyPeer(msg.getSource()));
+        PeerInfo result = discoveryService.getAnyPeer(msg.getSource());
+        if (result == null) {
+            LOGGER.log(Level.INFO, "Dropping PEER_REQUEST");
+            return;
+        }
+        PeerResponse response = new PeerResponse(result);
         messenger.send(response, msg.getSource().getListeningAddress());
         LOGGER.log(Level.INFO, "Sending peer info");
-    }
-
-    private void handleMessageReceivedEvent(MessageReceived ev)
-    {
-        Message msg = ev.getMessage();
-        switch ((DiscoverMessageType) msg.getMessageType())
-        {
-            case REGISTER_REQUEST:
-                handleRegisterRequestMsg((RegisterRequest) msg);
-                break;
-            case DEREGISTER_REQUEST:
-                handleDeregisterRequestMsg((DeregisterRequest) msg);
-                break;
-            case PEER_REQUEST:
-                handlePeerRequestMsg((PeerRequest) msg);
-                break;
-        }
     }
 
     public static void printUsage()
