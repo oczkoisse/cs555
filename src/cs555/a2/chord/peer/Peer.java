@@ -137,9 +137,12 @@ public abstract class Peer implements Runnable
             if (predecessor == PeerInfo.NULL_PEER || latestPredecessor.getID().inInterval(predecessor.getID(), ownInfo.getID()))
             {
                 setPredecessor(latestPredecessor);
+                transferDataItemsToNewNode(latestPredecessor);
             }
         }
     }
+
+    protected abstract void transferDataItemsToNewNode(PeerInfo newNode);
 
     private void handleLookupResultMsg(LookupResult msg)
     {
@@ -184,14 +187,14 @@ public abstract class Peer implements Runnable
         synchronized (fingerTable)
         {
             // Get successor's predecessor
-            PeerInfo succPred = msg.getPredecessor();
-            PeerInfo succ = getSuccessor();
-            if (succ != PeerInfo.NULL_PEER && succPred.getID().inInterval(ownInfo.getID(), succ.getID()))
+            PeerInfo latestSuccessor = msg.getPredecessor();
+            PeerInfo oldSuccessor = getSuccessor();
+            if (oldSuccessor != PeerInfo.NULL_PEER && latestSuccessor.getID().inInterval(ownInfo.getID(), oldSuccessor.getID()))
             {
-                setSuccessor(succPred);
-                succ = succPred;
+                setSuccessor(latestSuccessor);
+                oldSuccessor = latestSuccessor;
             }
-            if (succ != PeerInfo.NULL_PEER)
+            if (oldSuccessor != PeerInfo.NULL_PEER)
                 send(new PredecessorUpdate(ownInfo), getSuccessor().getListeningAddress());
         }
     }

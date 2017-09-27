@@ -120,6 +120,21 @@ public class Client extends Peer
     }
 
     @Override
+    protected void transferDataItemsToNewNode(PeerInfo newNode)
+    {
+        synchronized (storedFiles)
+        {
+            for(DataItem d : storedFiles.values())
+                if (d.getID().compareTo(newNode.getID()) <= 0)
+                {
+                    LOGGER.log(Level.INFO, "Transferring " + d + " to newly joined node" + newNode.getListeningAddress());
+                    send(d, newNode.getListeningAddress());
+                }
+            printHeldDataItems();
+        }
+    }
+
+    @Override
     protected void setup()
     {
         register();
@@ -146,6 +161,22 @@ public class Client extends Peer
     private void handleDataItemMsg(DataItem msg)
     {
         LOGGER.log(Level.INFO, "Received file (id " + msg.getID() + "): " + msg.getFilePath());
+        synchronized (storedFiles)
+        {
+            storedFiles.put(msg.getID(), msg);
+            printHeldDataItems();
+        }
+    }
+
+    private void printHeldDataItems()
+    {
+        synchronized(storedFiles) {
+            LOGGER.log(Level.INFO, "Currently held data items: ");
+            for (DataItem d: storedFiles.values())
+            {
+                LOGGER.log(Level.INFO, d.toString());
+            }
+        }
     }
 
     private void handlePeerResponseMsg(PeerResponse msg)

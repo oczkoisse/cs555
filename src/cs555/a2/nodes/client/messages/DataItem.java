@@ -151,4 +151,10 @@ public class DataItem implements Message<ClientMessageType>
     {
         return this.id;
     }
+
+    @Override
+    public String toString()
+    {
+        return "ID: " + id + ", Name: " + pathToFile + ", Dummy: " + dummy;
+    }
 }
