@@ -124,14 +124,11 @@ public class Messenger
         ConnectionReceived ev = new ConnectionReceived();
         try {
             ev.setSocket(listener.accept());
+            this.executorCompletionService.submit(this::tryAccept);
         }
         catch (IOException ex)
         {
             ev.setException(ex);
-        }
-        finally
-        {
-            this.executorCompletionService.submit(this::tryAccept);
         }
         return ev;
     }

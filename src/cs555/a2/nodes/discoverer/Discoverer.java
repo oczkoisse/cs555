@@ -45,11 +45,32 @@ public class Discoverer
                 else
                 {
                     LOGGER.log(Level.SEVERE, "Received event caused an exception: " + ev.getException().getMessage());
+                    handleFailedEvent(ev);
                 }
             } catch (ExecutionException ex) {
                 LOGGER.log(Level.SEVERE, "Exception occurred while executing the event");
                 ex.printStackTrace();
             }
+        }
+    }
+
+    private void handleFailedEvent(Event ev)
+    {
+        switch (ev.getEventType())
+        {
+            case MESSAGE_SENT: {
+                MessageSent msev = (MessageSent) ev;
+                switch ((DiscovererMessageType) msev.getMessage().getMessageType())
+                {
+                    case REGISTER_RESPONSE:
+                    case DEREGISTER_RESPONSE:
+                        LOGGER.log(Level.INFO, "Looks like the peer at " + msev.getDestination() + " died" );
+                        break;
+                }
+                break;
+            }
+            default:
+                break;
         }
     }
 

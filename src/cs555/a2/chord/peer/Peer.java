@@ -200,12 +200,29 @@ public abstract class Peer implements Runnable
     Core functionality of Chord ends
      */
 
+    private void shutdown()
+    {
+        ownShutdown();
+
+        LOGGER.log(Level.INFO, "Shutting down the Chord layer");
+        try
+        {
+            LOGGER.log(Level.INFO, "Waiting for 2 seconds for messaging to finish");
+            messenger.stop(2);
+
+        }
+        catch(InterruptedException ex)
+        {
+            LOGGER.log(Level.INFO, "Interrupted before messaging could stop gracefully");
+        }
+    }
+
     private void handleEvent(Event ev)
     {
         switch(ev.getEventType())
         {
             case INTERRUPT_RECEIVED:
-                messenger.stop();
+                shutdown();
                 break;
             case MESSAGE_RECEIVED:
                 handleMessageReceivedEvent((MessageReceived) ev);
@@ -279,28 +296,23 @@ public abstract class Peer implements Runnable
 
     private void handleFailedEvent(Event ev)
     {
-        switch (ev.getEventType())
+        if (ev.getEventType() == EventType.MESSAGE_SENT)
         {
-            case MESSAGE_SENT: {
-                Message msg = ((MessageSent) ev).getMessage();
-                if (msg.getMessageType() instanceof ChordMessageType) {
-                    switch ((ChordMessageType) msg.getMessageType()) {
-                        case LOOKUP_REQUEST:
-                        {
-
-                            break;
-                        }
-                        case PRED_REQUEST:
-                            setSuccessor(PeerInfo.NULL_PEER);
-                            break;
-                        default:
-                            break;
-                    }
+            Message msg = ((MessageSent) ev).getMessage();
+            if (msg.getMessageType() instanceof ChordMessageType)
+            {
+                switch ((ChordMessageType) msg.getMessageType()) {
+                    case LOOKUP_REQUEST:
+                        break;
+                    case PRED_REQUEST:
+                        setSuccessor(PeerInfo.NULL_PEER);
+                        break;
+                    default:
+                        break;
                 }
-                break;
             }
-            default:
-                break;
+            else
+                handleHigherFailedEvent(ev);
         }
     }
 
@@ -320,7 +332,9 @@ public abstract class Peer implements Runnable
     protected abstract void setup();
 
     protected abstract void handleOwnReceivedMessage(Message msg);
-    protected abstract void handleOwnFailedEvent(Event ev);
+    protected abstract void handleHigherFailedEvent(Event ev);
+    protected abstract void ownShutdown();
+
 
     protected boolean isValidConnection(Socket sock)
     {
@@ -376,6 +390,16 @@ public abstract class Peer implements Runnable
         messenger.listen();
         LOGGER.log(Level.INFO, "Begin listening for new connections...");
 
+        LOGGER.log(Level.INFO, "Adding shutdown hook");
+        Runtime.getRuntime().addShutdownHook(new Thread()
+        {
+            @Override
+            public void run()
+            {
+                shutdown();
+            }
+        });
+
         setup();
 
         while(true)
@@ -388,7 +412,7 @@ public abstract class Peer implements Runnable
                 else
                 {
                     LOGGER.log(Level.SEVERE, "Received event caused an exception: " + ev.getException().getMessage());
-                    handleOwnFailedEvent(ev);
+                    handleFailedEvent(ev);
                 }
             } catch (ExecutionException ex) {
                 LOGGER.log(Level.SEVERE, "Exception occurred while executing the event");

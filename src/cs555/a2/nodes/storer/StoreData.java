@@ -13,10 +13,8 @@ import cs555.a2.nodes.discoverer.messages.PeerRequest;
 import cs555.a2.nodes.discoverer.messages.PeerResponse;
 import cs555.a2.transport.Message;
 import cs555.a2.transport.messenger.*;
-import org.junit.jupiter.api.extension.ExtensionContext;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;

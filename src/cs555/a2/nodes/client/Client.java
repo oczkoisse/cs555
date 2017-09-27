@@ -163,8 +163,7 @@ public class Client extends Peer
     {
         if (msg.getStatus())
         {
-            synchronized(registered)
-            {
+            synchronized(registered) {
                 registered = true;
                 send(new PeerRequest(getOwnInfo()), discoveryAddress);
             }
@@ -177,15 +176,24 @@ public class Client extends Peer
     }
 
     @Override
-    protected  void handleOwnFailedEvent(Event ev)
+    protected  void handleHigherFailedEvent(Event ev)
     {
         if (ev.getEventType() == EventType.MESSAGE_SENT) {
-            MessageSent e = (MessageSent) ev;
-            System.out.println(e.getMessage());
-            if (e.getMessage().getMessageType() == DiscovererMessageType.REGISTER_REQUEST || e.getMessage().getMessageType() == DiscovererMessageType.DEREGISTER_REQUEST) {
+            Message msg = ((MessageSent) ev).getMessage();
+            if (msg.getMessageType() == DiscovererMessageType.REGISTER_REQUEST || msg.getMessageType() == DiscovererMessageType.DEREGISTER_REQUEST) {
                 LOGGER.log(Level.SEVERE, "Seems like Discovery is down. Exiting.");
                 System.exit(0);
             }
+        }
+    }
+
+    @Override
+    protected void ownShutdown()
+    {
+        synchronized (registered)
+        {
+            if (registered)
+                send(new DeregisterRequest(getOwnInfo()), discoveryAddress);
         }
     }
 }
