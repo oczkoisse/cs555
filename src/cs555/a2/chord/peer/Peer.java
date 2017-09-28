@@ -102,6 +102,7 @@ public abstract class Peer implements Runnable
     {
         synchronized(fingerTable) {
             PeerInfo pred = getClosestNodePrecedingId(msg.getID());
+            LOGGER.log(Level.INFO, "Closest node is " + pred);
             // Query dies if not enough info is there
             if (pred == PeerInfo.NULL_PEER)
                 return;
@@ -190,6 +191,7 @@ public abstract class Peer implements Runnable
     private void handleLookupRequestMsg(LookupRequest msg)
     {
         LOGGER.log(Level.INFO, msg.toString());
+        msg.addPath(ownInfo.getID());
         lookup(msg);
     }
 

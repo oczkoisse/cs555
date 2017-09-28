@@ -119,6 +119,7 @@ public class StoreData
         if(msg.getMessageType() == DiscovererMessageType.PEER_RESPONSE)
         {
             PeerResponse r = (PeerResponse) msg;
+            LOGGER.log(Level.INFO, "Node resolving this query: " + r.getPeer());
             Scanner scanner = new Scanner(System.in);
             while(true)
             {
@@ -165,6 +166,7 @@ public class StoreData
                 synchronized (items)
                 {
                     LOGGER.log(Level.INFO, "Lookup request successful for ID " + r.getLookedUpID());
+                    LOGGER.log(Level.INFO, "Path followed was: " + r.getPath());
                     DataItem d = items.get(r.getLookedUpID());
                     if (d != null)
                     {

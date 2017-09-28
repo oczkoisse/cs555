@@ -7,6 +7,9 @@ import cs555.a2.transport.Message;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class LookupRequest implements Message<ChordMessageType>
 {
@@ -14,6 +17,7 @@ public class LookupRequest implements Message<ChordMessageType>
     private int hopCount;
     private PeerInfo source;
     private LookupCause cause;
+    private List<ID> path;
 
     public LookupRequest()
     {
@@ -21,6 +25,7 @@ public class LookupRequest implements Message<ChordMessageType>
         this.hopCount = 0;
         this.source = PeerInfo.NULL_PEER;
         this.cause = null;
+        this.path = new ArrayList<>();
     }
 
     public LookupRequest(ID id, PeerInfo source, LookupCause cause)
@@ -29,6 +34,7 @@ public class LookupRequest implements Message<ChordMessageType>
         this.hopCount = 0;
         this.source = source;
         this.cause = cause;
+        this.path = new ArrayList<>();
     }
 
     @Override
@@ -46,11 +52,17 @@ public class LookupRequest implements Message<ChordMessageType>
             throw new IllegalStateException("Attempt to write with ID set to null");
         if (this.cause == null)
             throw new IllegalStateException("Attempt to write with cause set to null");
+        if (this.path == null)
+            throw new IllegalStateException("Attempt to write with path set to null");
 
         out.writeObject(idToBeLookedUp);
         out.writeInt(hopCount);
         out.writeObject(source);
         out.writeObject(cause);
+
+        out.writeInt(path.size());
+        for(ID i: path)
+            out.writeObject(i);
     }
 
     @Override
@@ -61,6 +73,10 @@ public class LookupRequest implements Message<ChordMessageType>
         this.hopCount++;
         this.source = (PeerInfo) in.readObject();
         this.cause = (LookupCause) in.readObject();
+
+        int pathLength = in.readInt();
+        for(int i=0; i<pathLength; i++)
+            path.add((ID) in.readObject());
     }
 
     public ID getID()
@@ -88,5 +104,16 @@ public class LookupRequest implements Message<ChordMessageType>
     {
         return getMessageType() + ": Hop " + hopCount + ", ID: " + idToBeLookedUp +
                 ", Source: " + source;
+    }
+
+    public List<ID> getPath()
+    {
+        return Collections.unmodifiableList(path);
+    }
+
+    public void addPath(ID id)
+    {
+        if (id != null)
+            path.add(id);
     }
 }
