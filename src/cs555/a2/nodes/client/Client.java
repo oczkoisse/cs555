@@ -2,8 +2,6 @@ package cs555.a2.nodes.client;
 
 import cs555.a2.chord.peer.*;
 import cs555.a2.hash.*;
-import cs555.a2.nodes.client.messages.ClientMessageType;
-import cs555.a2.nodes.client.messages.DataItem;
 import cs555.a2.nodes.discoverer.messages.*;
 import cs555.a2.transport.Message;
 import cs555.a2.transport.messenger.*;
@@ -11,7 +9,6 @@ import cs555.a2.transport.messenger.*;
 import java.math.BigInteger;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.HashMap;
 import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -23,8 +20,6 @@ public class Client extends Peer
     private InetSocketAddress discoveryAddress;
     private Boolean registered;
 
-    private HashMap<ID, DataItem> storedFiles;
-
     private Hash hash = new CRC16();
 
     public Client(PeerInfo peerInfo, InetSocketAddress discoveryAddress, int hearbeatInterval)
@@ -32,7 +27,6 @@ public class Client extends Peer
         super(peerInfo, hearbeatInterval);
         this.discoveryAddress = discoveryAddress;
         this.registered = false;
-        this.storedFiles = new HashMap<>();
     }
 
     public static void main(String[] args)
@@ -120,20 +114,6 @@ public class Client extends Peer
         }
     }
 
-    @Override
-    protected void transferDataItemsToNewNode(PeerInfo newNode)
-    {
-        synchronized (storedFiles)
-        {
-            for(DataItem d : storedFiles.values())
-                if (d.getID().compareTo(newNode.getID()) <= 0)
-                {
-                    LOGGER.log(Level.INFO, "Transferring " + d + " to newly joined node" + newNode.getListeningAddress());
-                    send(d, newNode.getListeningAddress());
-                }
-            printHeldDataItems();
-        }
-    }
 
     @Override
     protected void setup()
@@ -155,29 +135,6 @@ public class Client extends Peer
             handleDeregisterResponseMsg((DeregisterResponse) msg);
         else if (msg.getMessageType() == DiscovererMessageType.PEER_RESPONSE)
             handlePeerResponseMsg((PeerResponse) msg);
-        else if (msg.getMessageType() == ClientMessageType.DATA_ITEM)
-            handleDataItemMsg((DataItem) msg);
-    }
-
-    private void handleDataItemMsg(DataItem msg)
-    {
-        LOGGER.log(Level.INFO, "Received file (id " + msg.getID() + "): " + msg.getFilePath());
-        synchronized (storedFiles)
-        {
-            storedFiles.put(msg.getID(), msg);
-            printHeldDataItems();
-        }
-    }
-
-    private void printHeldDataItems()
-    {
-        synchronized(storedFiles) {
-            LOGGER.log(Level.INFO, "Currently held data items: ");
-            for (DataItem d: storedFiles.values())
-            {
-                LOGGER.log(Level.INFO, d.toString());
-            }
-        }
     }
 
     private void handlePeerResponseMsg(PeerResponse msg)
@@ -188,7 +145,16 @@ public class Client extends Peer
 
     private void handleDeregisterResponseMsg(DeregisterResponse msg)
     {
-
+        if (msg.getStatus())
+        {
+            LOGGER.log(Level.INFO, "Successfully deregistered");
+            synchronized(registered) {
+                registered = false;
+            }
+        }
+        else {
+            LOGGER.log(Level.INFO, "Unable to deregister");
+        }
     }
 
     private void handleRegisterResponseMsg(RegisterResponse msg)
@@ -222,10 +188,6 @@ public class Client extends Peer
     @Override
     protected void ownShutdown()
     {
-        synchronized (registered)
-        {
-            if (registered)
-                send(new DeregisterRequest(getOwnInfo()), discoveryAddress);
-        }
+        deregister();
     }
 }

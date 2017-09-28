@@ -44,20 +44,50 @@ final class FingerTable
         return fingers.get(k);
     }
 
-    public synchronized PeerInfo getPeerInfo(int k)
+    public PeerInfo getPeerInfo(int k)
     {
-        return fingerToPeerMap.get(fingers.get(k));
+        synchronized (fingerToPeerMap)
+        {
+            return fingerToPeerMap.get(fingers.get(k));
+        }
     }
 
-    public synchronized void setPeerInfo(int k, PeerInfo peerInfo)
+    public void setPeerInfo(int k, PeerInfo peerInfo)
     {
-        fingerToPeerMap.replace(getFinger(k), peerInfo);
+        synchronized (fingerToPeerMap)
+        {
+            // Rest is an optimization to speed up stabilization
+            if (fingerToPeerMap.replace(getFinger(k), peerInfo) != null && peerInfo != PeerInfo.NULL_PEER)
+            {
+                ID id = peerInfo.getID();
+                for(int i = k+1; i < size(); i++)
+                {
+                    if(getFinger(i).inInterval(ownID, id) || getFinger(i).compareTo(id) == 0)
+                        setPeerInfo(i, peerInfo);
+                }
+            }
+        }
     }
 
-    public synchronized void setPeerInfo(ID finger, PeerInfo peerInfo)
+    public void setPeerInfo(ID finger, PeerInfo peerInfo)
     {
-        fingerToPeerMap.replace(finger, peerInfo);
+        int idx = Collections.binarySearch(fingers, finger);
+        if (idx >= 0)
+            setPeerInfo(idx, peerInfo);
     }
+
+    public void setSuccessor(PeerInfo successor) {
+        synchronized (fingerToPeerMap)
+        {
+            setPeerInfo(0, successor);
+        }
+    }
+
+    public PeerInfo getSuccessor()
+    {
+        return getPeerInfo(0);
+    }
+
 
     private ID calculateFinger(int k)
     {

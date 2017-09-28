@@ -1,4 +1,4 @@
-package cs555.a2.nodes.client.messages;
+package cs555.a2.chord.peer.messages;
 
 import cs555.a2.chord.peer.ID;
 import cs555.a2.hash.CRC16;
@@ -8,7 +8,7 @@ import cs555.a2.transport.Message;
 import java.io.*;
 import java.math.BigInteger;
 
-public class DataItem implements Message<ClientMessageType>
+public class DataItem implements Message<ChordMessageType>
 {
     private static final File outDir = new File(System.getProperty("java.io.tmpdir"));
     private Hash hash;
@@ -87,9 +87,9 @@ public class DataItem implements Message<ClientMessageType>
     }
 
     @Override
-    public ClientMessageType getMessageType()
+    public ChordMessageType getMessageType()
     {
-        return ClientMessageType.DATA_ITEM;
+        return ChordMessageType.DATA_ITEM;
     }
 
     @Override
@@ -109,8 +109,6 @@ public class DataItem implements Message<ClientMessageType>
                     out.write(buffer, 0, bytesRead);
                 }
             }
-
-            pathToFile.delete();
         }
     }
 
@@ -145,6 +143,12 @@ public class DataItem implements Message<ClientMessageType>
     public String getFilePath()
     {
         return pathToFile.getPath();
+    }
+
+    public void delete()
+    {
+        if (!dummy)
+            pathToFile.delete();
     }
 
     public ID getID()

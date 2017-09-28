@@ -2,16 +2,9 @@ package cs555.a2.nodes.storer;
 
 import cs555.a2.chord.peer.ID;
 import cs555.a2.chord.peer.PeerInfo;
-import cs555.a2.chord.peer.messages.ChordMessageType;
-import cs555.a2.chord.peer.messages.LookupCause;
-import cs555.a2.chord.peer.messages.LookupRequest;
-import cs555.a2.chord.peer.messages.LookupResult;
+import cs555.a2.chord.peer.messages.*;
 import cs555.a2.hash.CRC16;
-import cs555.a2.nodes.client.messages.ClientMessageType;
-import cs555.a2.nodes.client.messages.DataItem;
-import cs555.a2.nodes.discoverer.messages.DiscovererMessageType;
-import cs555.a2.nodes.discoverer.messages.PeerRequest;
-import cs555.a2.nodes.discoverer.messages.PeerResponse;
+import cs555.a2.nodes.discoverer.messages.*;
 import cs555.a2.transport.Message;
 import cs555.a2.transport.messenger.*;
 
@@ -25,7 +18,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class StoreData implements Runnable
+public class StoreData
 {
     private static final Logger LOGGER = Logger.getLogger(StoreData.class.getName());
     private Messenger messenger;
@@ -107,7 +100,7 @@ public class StoreData implements Runnable
 
     private void handleMessageSentEvent(MessageSent ev)
     {
-        if (ev.getMessage().getMessageType() == ClientMessageType.DATA_ITEM)
+        if (ev.getMessage().getMessageType() == ChordMessageType.DATA_ITEM)
         {
             DataItem d = (DataItem) ev.getMessage();
             LOGGER.log(Level.INFO, String.format("Successfully transferred the file %1$s (%2$s)", d.getFilePath(), d.getID()));
@@ -201,7 +194,7 @@ public class StoreData implements Runnable
         if (args.length >= 3)
         {
             StoreData sd = null;
-            InetSocketAddress discoveryAddress = null;
+            InetSocketAddress discoveryAddress;
             try {
                 int listeningPort = Integer.parseInt(args[0]);
                 String discoveryHost = args[1];

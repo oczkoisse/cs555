@@ -3,7 +3,7 @@ package cs555.a2.chord.peer;
 import java.io.*;
 import java.math.BigInteger;
 
-public class ID implements Externalizable
+public class ID implements Externalizable, Comparable<ID>
 {
     private BigInteger id;
     private int size;
@@ -79,12 +79,13 @@ public class ID implements Externalizable
         return new ID(this.id.add(num).mod(MOD_VAL), this.size);
     }
 
+    @Override
     public int compareTo(ID id)
     {
         if (this.id == null)
             throw new IllegalStateException("compareTo() called on an uninitialized ID");
         if (this.size != id.size())
-            throw new IllegalArgumentException("compareTo() called on different size IDs: " + this.id + " and " + id.size());
+            throw new IllegalArgumentException("compareTo() called on different size IDs: " + size() + " and " + id.size());
 
         return this.id.compareTo(id.get());
     }

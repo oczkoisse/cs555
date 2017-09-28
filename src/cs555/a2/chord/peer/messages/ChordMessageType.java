@@ -7,5 +7,6 @@ public enum ChordMessageType
     LOOKUP_REQUEST,
     LOOKUP_RESULT,
     PRED_UPDATE,
-    LAST_GASP
+    LAST_GASP,
+    DATA_ITEM
 }
