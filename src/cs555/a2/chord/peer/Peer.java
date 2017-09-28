@@ -77,6 +77,7 @@ public abstract class Peer implements Runnable
     private void printState()
     {
         LOGGER.log(Level.INFO, String.format("Predecessor: %1$s%n", getPredecessor().toString()) + fingerTable.toString());
+        printHeldDataItems();
     }
 
     private void printHeldDataItems()
@@ -230,14 +231,18 @@ public abstract class Peer implements Runnable
     {
         synchronized (storedFiles)
         {
-            for(DataItem d : storedFiles.values())
-                if (!(d.getID().inInterval(newNode.getID(), ownInfo.getID()) || d.getID().compareTo(ownInfo.getID()) == 0))
-                {
-                    LOGGER.log(Level.INFO, "Transferring " + d + " to newly joined node" + newNode.getListeningAddress());
-                    send(d, newNode.getListeningAddress());
-                }
+            if (newNode != PeerInfo.NULL_PEER)
+            {
+                for(DataItem d : storedFiles.values())
+                    if (d.getID().inInterval(ownInfo.getID(), newNode.getID()) || d.getID().compareTo(newNode.getID()) == 0)
+                    {
+                        LOGGER.log(Level.INFO, "Transferring " + d + " to newly joined node" + newNode.getListeningAddress());
+                        send(d, newNode.getListeningAddress());
+                    }
+            }
         }
     }
+
 
     private void handleDataItemMsg(DataItem msg)
     {
