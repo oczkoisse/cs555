@@ -95,7 +95,7 @@ public class Discoverer
 
     private void handleMessageSentEvent(MessageSent ev)
     {
-        LOGGER.log(Level.FINE, "Sent a message");
+        LOGGER.log(Level.FINE, "Sent " + ev.getMessage().getMessageType() + " to " + ev.getDestination());
     }
 
     private void handleConnectionReceivedEvent(ConnectionReceived ev)
@@ -148,7 +148,7 @@ public class Discoverer
         }
         PeerResponse response = new PeerResponse(result);
         messenger.send(response, msg.getSource().getListeningAddress());
-        LOGGER.log(Level.INFO, "Sending peer info");
+        LOGGER.log(Level.INFO, "Sending PEER_RESPONSE");
     }
 
     public static void printUsage()

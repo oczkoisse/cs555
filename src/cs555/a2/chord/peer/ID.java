@@ -84,7 +84,7 @@ public class ID implements Externalizable
         if (this.id == null)
             throw new IllegalStateException("compareTo() called on an uninitialized ID");
         if (this.size != id.size())
-            throw new IllegalArgumentException("compareTo() called on different size IDs");
+            throw new IllegalArgumentException("compareTo() called on different size IDs: " + this.id + " and " + id.size());
 
         return this.id.compareTo(id.get());
     }
@@ -109,7 +109,7 @@ public class ID implements Externalizable
                    this.compareTo(end1) >= 0 || this.compareTo(end2) <= 0 :
                    this.compareTo(end1) > 0 || this.compareTo(end2) < 0;
         else
-            return inclusive ? this.compareTo(end1) == 0 : false;
+            return inclusive ? true : this.compareTo(end1) != 0;
     }
 
     public boolean inInterval(ID end1, ID end2)

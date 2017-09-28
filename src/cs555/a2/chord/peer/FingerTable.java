@@ -67,4 +67,20 @@ final class FingerTable
             throw new IllegalArgumentException("Finger " + k + " is not defined");
     }
 
+    @Override
+    public String toString()
+    {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append(String.format("%n"));
+        final String formatString = "%1$3d (%2$" + (ownID.sizeInBits()/4 + 1) + "s): %3$s (%4$s)%n";
+        synchronized (fingerToPeerMap)
+        {
+            for(int k=0; k<size(); k++)
+            {
+                stringBuilder.append(String.format(formatString, k, getFinger(k), getPeerInfo(k).getName(), getPeerInfo(k).getID()));
+            }
+        }
+        return stringBuilder.toString();
+    }
+
 }

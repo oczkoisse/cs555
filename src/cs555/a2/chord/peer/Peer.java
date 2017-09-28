@@ -32,7 +32,7 @@ public abstract class Peer implements Runnable
         this.predecessor = PeerInfo.NULL_PEER;
         this.messenger = new Messenger(info.getListeningAddress().getPort(), 4);
         this.joined = false;
-        this.updater.schedule(this::hearbeat, hearbeatInterval, TimeUnit.MILLISECONDS);
+        this.updater.scheduleWithFixedDelay(this::hearbeat, 0, hearbeatInterval, TimeUnit.MILLISECONDS);
     }
 
     /*
@@ -47,8 +47,20 @@ public abstract class Peer implements Runnable
                 synchronized (fingerTable)
                 {
                     PeerInfo succ = getSuccessor();
-                    if (succ != PeerInfo.NULL_PEER)
-                        send(new PredecessorRequest(ownInfo), succ.getListeningAddress());
+                    if (succ != PeerInfo.NULL_PEER) {
+                        // if you are your own successor
+                        if (succ.getID().compareTo(ownInfo.getID()) ==  0) {
+                            synchronized (predecessor)
+                            {
+                                PeerInfo pred = getPredecessor();
+                                if (pred.getID().compareTo(ownInfo.getID()) != 0)
+                                    setSuccessor(pred);
+                            }
+                        } else {
+                            send(new PredecessorRequest(ownInfo), succ.getListeningAddress());
+                            send(new PredecessorUpdate(ownInfo), succ.getListeningAddress());
+                        }
+                    }
 
                     // Fix fingers randomly
                     int idx = ThreadLocalRandom.current().nextInt(1, fingerTable.size());
@@ -56,6 +68,11 @@ public abstract class Peer implements Runnable
                 }
             }
         }
+    }
+
+    private void printState()
+    {
+        LOGGER.log(Level.INFO, String.format("Predecessor: %1$s%n", getPredecessor().toString()) + fingerTable.toString());
     }
 
     private void lookup(LookupRequest msg)
@@ -129,19 +146,6 @@ public abstract class Peer implements Runnable
         }
     }
 
-    private void handlePredUpdateMsg(PredecessorUpdate msg)
-    {
-        PeerInfo latestPredecessor = msg.getLatestPredecessor();
-        synchronized (predecessor)
-        {
-            if (predecessor == PeerInfo.NULL_PEER || latestPredecessor.getID().inInterval(predecessor.getID(), ownInfo.getID()))
-            {
-                setPredecessor(latestPredecessor);
-                transferDataItemsToNewNode(latestPredecessor);
-            }
-        }
-    }
-
     protected abstract void transferDataItemsToNewNode(PeerInfo newNode);
 
     private void handleLookupResultMsg(LookupResult msg)
@@ -154,6 +158,8 @@ public abstract class Peer implements Runnable
                     if (!joined) {
                         setSuccessor(msg.getSuccessor());
                         joined = true;
+                        LOGGER.log(Level.INFO, "Joined the Chord network");
+                        printState();
                     }
                 }
             }
@@ -161,6 +167,7 @@ public abstract class Peer implements Runnable
         else if (msg.getCause() == LookupCause.FINGER_UPDATE)
         {
             fingerTable.setPeerInfo(msg.getLookedUpID(), msg.getSuccessor());
+            printState();
         }
         else
         {
@@ -178,7 +185,8 @@ public abstract class Peer implements Runnable
     {
         synchronized(predecessor)
         {
-            send(new PredecessorResult(getPredecessor()), msg.getSource().getListeningAddress());
+            if (predecessor != PeerInfo.NULL_PEER)
+                send(new PredecessorResult(getPredecessor()), msg.getSource().getListeningAddress());
         }
     }
 
@@ -187,15 +195,27 @@ public abstract class Peer implements Runnable
         synchronized (fingerTable)
         {
             // Get successor's predecessor
-            PeerInfo latestSuccessor = msg.getPredecessor();
-            PeerInfo oldSuccessor = getSuccessor();
-            if (oldSuccessor != PeerInfo.NULL_PEER && latestSuccessor.getID().inInterval(ownInfo.getID(), oldSuccessor.getID()))
+            PeerInfo predecessorOfSuccessor = msg.getPredecessor();
+            PeerInfo succ = getSuccessor();
+            if (succ != PeerInfo.NULL_PEER && predecessorOfSuccessor.getID().inInterval(ownInfo.getID(), succ.getID()))
             {
-                setSuccessor(latestSuccessor);
-                oldSuccessor = latestSuccessor;
+                setSuccessor(predecessorOfSuccessor);
+                succ = predecessorOfSuccessor;
+                printState();
             }
-            if (oldSuccessor != PeerInfo.NULL_PEER)
-                send(new PredecessorUpdate(ownInfo), getSuccessor().getListeningAddress());
+        }
+    }
+
+    private void handlePredUpdateMsg(PredecessorUpdate msg)
+    {
+        PeerInfo latestPredecessor = msg.getLatestPredecessor();
+        synchronized (predecessor)
+        {
+            if (predecessor == PeerInfo.NULL_PEER || latestPredecessor.getID().inInterval(predecessor.getID(), ownInfo.getID()))
+            {
+                setPredecessor(latestPredecessor);
+                transferDataItemsToNewNode(latestPredecessor);
+            }
         }
     }
 
@@ -328,6 +348,7 @@ public abstract class Peer implements Runnable
         {
             setPredecessor(pred);
         }
+        printState();
     }
 
     private void handleFailedEvent(Event ev)
@@ -363,6 +384,7 @@ public abstract class Peer implements Runnable
                                 else
                                     break;
                             };
+                            printState();
                         }
                         break;
                     default:
@@ -376,6 +398,7 @@ public abstract class Peer implements Runnable
 
     protected final void send(Message msg, InetSocketAddress destination)
     {
+        LOGGER.log(Level.INFO, "Sending " + msg.getMessageType() + " to " + destination);
         messenger.send(msg, destination);
     }
 
@@ -432,6 +455,8 @@ public abstract class Peer implements Runnable
                     fingerTable.setPeerInfo(k, ownInfo);
                 predecessor = ownInfo;
                 joined = true;
+                LOGGER.log(Level.INFO, "Identified as first node in the network");
+                printState();
             }
             else
             {

@@ -1,0 +1,23 @@
+This project resides in the package cs555.a2. The project itself is sub-divided into following packages:
+- cs555.a2.chord
+    - peer.Peer: Base class wrapping chord protocol
+    - peer.PeerInfo: For sending peer info to discovery
+    - peer.ID: Unlimited precision ID for handling higher than 16 bit hashes
+    - peer.FingerTable
+    - discovery.DiscoveryService Interface for discovery service
+
+- cs555.a2.nodes
+    - client.Client: The client module that uses Chord protocol under the hood
+    - storer.StoreData: The Store Data module to intiate data storage requests
+    - discoverer.BasicDiscoveryService Implementation of DiscoveryService via register and deregister protocols
+    - discoverer.Discoverer: The discovery node using BasicDiscoveryService
+- cs555.a1.transport
+    - Receiver: Provides a wrapper around the underlying socket to facilitate creating and closing a connection for receiving messages
+    - Sender: Same as Receiver, but for sending messages
+    - Listener: Just a utility function to receive incoming connections.
+    - Messenger: A utility class to provide asynchronous I/O by using the previous three classes
+- cs555.a2.hash
+    - Hash: Interface for hash implementations
+    - CRC16: Implementation of CRC16 (wrapper around Sun's own implementation in sun.misc package)
+- cs555.a2.utility
+    - ByteConverter: Allows conversion of primitive data types (int, short, long) to bytes

@@ -1,5 +1,6 @@
 package cs555.a2.transport.messenger;
 
+import cs555.a2.chord.peer.PeerInfo;
 import cs555.a2.transport.*;
 
 import java.io.IOException;
@@ -144,7 +145,7 @@ public class Messenger
         if (msg != null)
             this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
         else
-            LOGGER.log(Level.WARNING, "Ignored a request to send a null message");
+            LOGGER.log(Level.WARNING, "Ignored a request to send a null or NULL_PEER message");
     }
 
     /**

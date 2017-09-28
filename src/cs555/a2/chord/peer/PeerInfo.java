@@ -23,7 +23,7 @@ public class PeerInfo implements Externalizable
     private InetSocketAddress listeningAddress;
     private String name;
 
-    public static final PeerInfo NULL_PEER = new PeerInfo();
+    public static final PeerInfo NULL_PEER = new PeerInfo(null, null, "NULL_PEER");
 
     public PeerInfo(ID id, InetSocketAddress listeningAddress, String name)
     {
@@ -46,21 +46,21 @@ public class PeerInfo implements Externalizable
 
     public ID getID()
     {
-        if (isNotInitialized())
-            throw new IllegalStateException("get() called on PeerInfo without initializing it");
+        if (this.id == null && this != PeerInfo.NULL_PEER)
+            throw new IllegalStateException("getID() called on PeerInfo without initializing it");
         return this.id;
     }
 
     public String getName()
     {
-        if (isNotInitialized())
+        if (this.name == null)
             throw new IllegalStateException("getName() called on PeerInfo without initializing it");
         return name;
     }
 
     public InetSocketAddress getListeningAddress()
     {
-        if (isNotInitialized())
+        if (this.listeningAddress == null  && this != PeerInfo.NULL_PEER)
             throw new IllegalStateException("getListeningAddress() called on PeerInfo without initializing it");
         // InetSocketAddress is immutable, so this is safe
         return listeningAddress;

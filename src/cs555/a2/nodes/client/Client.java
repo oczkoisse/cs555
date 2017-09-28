@@ -84,12 +84,13 @@ public class Client extends Peer
             {
                 try
                 {
-                    System.out.println("Override ID? (Enter n/N to skip)");
+                    System.out.println("Override ID? (Enter to skip)");
                     String h = scanner.nextLine();
-                    if (h.trim().toLowerCase().equals("n"))
-                        break;
-                    c.overrideID(new ID(h, 4));
-                    LOGGER.log(Level.INFO, "ID overridden as " + c.getOwnInfo().getID());
+                    if (!h.trim().equals(""))
+                    {
+                        c.overrideID(new ID(h, 2));
+                        LOGGER.log(Level.INFO, "ID overridden as " + c.getOwnInfo().getID());
+                    }
                     break;
                 }
                 catch(IllegalArgumentException ex)
