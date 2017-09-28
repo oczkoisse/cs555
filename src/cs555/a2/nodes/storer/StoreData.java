@@ -7,6 +7,7 @@ import cs555.a2.chord.peer.messages.LookupCause;
 import cs555.a2.chord.peer.messages.LookupRequest;
 import cs555.a2.chord.peer.messages.LookupResult;
 import cs555.a2.hash.CRC16;
+import cs555.a2.nodes.client.messages.ClientMessageType;
 import cs555.a2.nodes.client.messages.DataItem;
 import cs555.a2.nodes.discoverer.messages.DiscovererMessageType;
 import cs555.a2.nodes.discoverer.messages.PeerRequest;
@@ -106,7 +107,15 @@ public class StoreData implements Runnable
 
     private void handleMessageSentEvent(MessageSent ev)
     {
-        LOGGER.log(Level.FINE, "Sent a message: " + ev.getMessage().getMessageType());
+        if (ev.getMessage().getMessageType() == ClientMessageType.DATA_ITEM)
+        {
+            DataItem d = (DataItem) ev.getMessage();
+            LOGGER.log(Level.INFO, String.format("Successfully transferred the file %1$s (%2$s)", d.getFilePath(), d.getID()));
+        }
+        else
+        {
+            LOGGER.log(Level.FINE, "Sent a message: " + ev.getMessage().getMessageType());
+        }
     }
 
     private HashMap<ID, DataItem> items = new HashMap<>();
@@ -124,22 +133,23 @@ public class StoreData implements Runnable
                 {
                     System.out.println("Enter file path:");
                     String filePath = scanner.nextLine();
-                    System.out.println("Override ID? (Enter n/N to skip)");
+                    System.out.println("Override ID? (Enter to skip)");
                     String id = scanner.nextLine();
-                    boolean dummy = !id.trim().toLowerCase().equals("n");
+                    boolean dummy = !id.trim().equals("");
                     DataItem d = null;
                     if (dummy)
                     {
                         d = new DataItem(filePath, new ID(id, 2));
+                        LOGGER.log(Level.INFO, "Using manual hash value for " + d.getFilePath());
                     }
                     else
                     {
                         d = new DataItem(filePath);
+                        LOGGER.log(Level.INFO, "Hashed the contents of " + d.getFilePath() + " to " + d.getID());
                     }
                     synchronized (items)
                     {
                         items.put(d.getID(), d);
-                        LOGGER.log(Level.INFO, "Hashed the file " + d.getFilePath() + " to " + d.getID());
                     }
                     send(new LookupRequest(d.getID(), getOwnInfo(), LookupCause.NEW_DATA), r.getPeer().getListeningAddress());
                     break;
@@ -161,12 +171,12 @@ public class StoreData implements Runnable
             {
                 synchronized (items)
                 {
-                    LOGGER.log(Level.INFO, "Lookup request successfull for ID " + r.getLookedUpID());
+                    LOGGER.log(Level.INFO, "Lookup request successful for ID " + r.getLookedUpID());
                     DataItem d = items.get(r.getLookedUpID());
                     if (d != null)
                     {
                         send(d, r.getSuccessor().getListeningAddress());
-                        LOGGER.log(Level.INFO, "Sent the data item " + d.getFilePath());
+                        LOGGER.log(Level.INFO, "Submitted the data item to be sent: " + d.getFilePath());
                         send(new PeerRequest(getOwnInfo()), discoveryAddress);
                     }
                     else
