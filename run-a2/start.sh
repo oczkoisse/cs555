@@ -3,7 +3,7 @@
 test_home=$HOME/Documents/Assignments/cs555/out/production/cs555
 
 gnome-terminal -x bash -c "ssh -t denver 'cd ${test_home}; java cs555.a2.nodes.discoverer.Discoverer 44000; bash;'" &
-sleep 5
+sleep 3
 
 params=""
 k=1
