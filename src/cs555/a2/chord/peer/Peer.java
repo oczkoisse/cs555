@@ -405,34 +405,34 @@ public abstract class Peer implements Runnable
             if (msev.getMessage().getMessageType() instanceof ChordMessageType)
             {
                 switch ((ChordMessageType) msev.getMessage().getMessageType()) {
-                    case LOOKUP_REQUEST:
-                    {
+                    case LOOKUP_REQUEST: {
                         LookupRequest r = (LookupRequest) msev.getMessage();
-                        switch (r.getCause())
-                        {
+                        switch (r.getCause()) {
                             case FINGER_UPDATE:
                             case NEW_NODE:
+                                LOGGER.log(Level.WARNING, "Failed LOOKUP_REQUEST started by " + r.getSource() + " with cause " + r.getCause() + ". Retrying.");
+                                fingerTable.setPeerInfo(r.getID(), PeerInfo.NULL_PEER);
+                                new Thread(() -> {
+                                    try
+                                    {
+                                        Thread.sleep(5000);
+                                        lookup(r);
+                                    }
+                                    catch(InterruptedException ex)
+                                    {
+
+                                    }
+                                }).start();
                                 break;
                             default:
                                 break;
                         }
                     }
                     case PRED_REQUEST:
-                        synchronized (fingerTable)
-                        {
-                            ID succID = fingerTable.getSuccessor().getID();
-                            for(int k=0; k<fingerTable.size(); k++)
-                            {
-                                if(fingerTable.getPeerInfo(k).getID().compareTo(succID) == 0)
-                                {
-                                    fingerTable.setPeerInfo(k, PeerInfo.NULL_PEER);
-                                }
-                                else
-                                    break;
-                            };
-                            printState();
-                        }
+                    {
+                        LOGGER.log(Level.WARNING, "Failed to send PRED_REQUEST to successor");
                         break;
+                    }
                     default:
                         break;
                 }

@@ -71,7 +71,7 @@ final class FingerTable
 
     public void setPeerInfo(ID finger, PeerInfo peerInfo)
     {
-        int idx = Collections.binarySearch(fingers, finger);
+        int idx = fingers.indexOf(finger);
         if (idx >= 0)
             setPeerInfo(idx, peerInfo);
     }
