@@ -208,7 +208,6 @@ public abstract class Peer implements Runnable
             if (succ != PeerInfo.NULL_PEER && predecessorOfSuccessor.getID().inInterval(ownInfo.getID(), succ.getID()))
             {
                 fingerTable.setSuccessor(predecessorOfSuccessor);
-                succ = predecessorOfSuccessor;
                 printState();
             }
         }
@@ -232,7 +231,7 @@ public abstract class Peer implements Runnable
         synchronized (storedFiles)
         {
             for(DataItem d : storedFiles.values())
-                if (d.getID().compareTo(newNode.getID()) <= 0)
+                if (!(d.getID().inInterval(newNode.getID(), ownInfo.getID()) || d.getID().compareTo(ownInfo.getID()) == 0))
                 {
                     LOGGER.log(Level.INFO, "Transferring " + d + " to newly joined node" + newNode.getListeningAddress());
                     send(d, newNode.getListeningAddress());
@@ -265,11 +264,13 @@ public abstract class Peer implements Runnable
             {
                 PeerInfo pred = getPredecessor();
                 PeerInfo succ = fingerTable.getSuccessor();
-                if (pred != PeerInfo.NULL_PEER && succ != PeerInfo.NULL_PEER)
+                if (pred != PeerInfo.NULL_PEER)
                 {
-                    LastGasp msg = new LastGasp(pred, succ);
-                    messenger.send(msg, pred.getListeningAddress());
-                    messenger.send(msg, succ.getListeningAddress());
+                    messenger.send(new LastGaspSuccessor(succ), pred.getListeningAddress());
+                }
+                if (succ != PeerInfo.NULL_PEER)
+                {
+                    messenger.send(new LastGaspPredecessor(pred), succ.getListeningAddress());
                 }
             }
         }
@@ -367,8 +368,11 @@ public abstract class Peer implements Runnable
                 case LOOKUP_RESULT:
                     handleLookupResultMsg((LookupResult) msg);
                     break;
-                case LAST_GASP:
-                    handleLastGaspMsg((LastGasp) msg);
+                case LAST_GASP_PRED:
+                    handleLastGaspPredMsg((LastGaspPredecessor) msg);
+                    break;
+                case LAST_GASP_SUCC:
+                    handleLastGaspSuccMsg((LastGaspSuccessor) msg);
                     break;
                 case DATA_ITEM:
                     handleDataItemMsg((DataItem) msg);
@@ -381,19 +385,17 @@ public abstract class Peer implements Runnable
         }
     }
 
-    private void handleLastGaspMsg(LastGasp msg)
-    {
-        PeerInfo pred = msg.getPredecessor();
-        PeerInfo succ = msg.getSuccessor();
+    private void handleLastGaspPredMsg(LastGaspPredecessor msg) {
 
-        if (pred.getID().compareTo(ownInfo.getID()) == 0)
-        {
-            fingerTable.setSuccessor(succ);
-        }
-        else if (succ.getID().compareTo(ownInfo.getID()) == 0)
-        {
-            setPredecessor(pred);
-        }
+        PeerInfo pred = msg.getPredecessor();
+        setPredecessor(pred);
+        printState();
+    }
+
+    private void handleLastGaspSuccMsg(LastGaspSuccessor msg)
+    {
+        PeerInfo succ = msg.getSuccessor();
+        fingerTable.setSuccessor(succ);
         printState();
     }
 
