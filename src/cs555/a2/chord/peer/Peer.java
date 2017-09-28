@@ -5,11 +5,14 @@ import cs555.a2.chord.peer.messages.DataItem;
 import cs555.a2.transport.Message;
 import cs555.a2.transport.messenger.*;
 
+import javax.xml.crypto.Data;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.concurrent.*;
 
 import java.util.logging.Level;
@@ -243,6 +246,45 @@ public abstract class Peer implements Runnable
         }
     }
 
+    private void lastGasp()
+    {
+        // Send out a last gasp if needed
+        synchronized (storedFiles)
+        {
+            synchronized (fingerTable)
+            {
+                synchronized (predecessor)
+                {
+                    PeerInfo pred = getPredecessor();
+                    PeerInfo succ = fingerTable.getSuccessor();
+
+                    List<DataItem> dataItemList = new ArrayList<>();
+
+                    // Prepare a list of data items to transfer to successor
+                    if (succ != PeerInfo.NULL_PEER && pred != PeerInfo.NULL_PEER)
+                    {
+                        for(DataItem d : storedFiles.values()) {
+                            if (d.getID().inInterval(pred.getID(), ownInfo.getID()) || d.getID().compareTo(ownInfo.getID()) == 0) {
+                                LOGGER.log(Level.INFO, "Transferring " + d + " file before dying to successor at " + succ.getListeningAddress());
+                                dataItemList.add(d);
+                            }
+                        }
+                    }
+
+                    if (pred != PeerInfo.NULL_PEER)
+                    {
+                        messenger.send(new LastGaspSuccessor(succ), pred.getListeningAddress());
+                    }
+
+                    if (succ != PeerInfo.NULL_PEER)
+                    {
+                        messenger.send(new LastGaspPredecessor(pred, dataItemList), succ.getListeningAddress());
+                    }
+                }
+            }
+        }
+    }
+
 
     private void handleDataItemMsg(DataItem msg)
     {
@@ -262,23 +304,7 @@ public abstract class Peer implements Runnable
     {
         ownShutdown();
 
-        // Send out a last gasp if needed
-        synchronized (predecessor)
-        {
-            synchronized (fingerTable)
-            {
-                PeerInfo pred = getPredecessor();
-                PeerInfo succ = fingerTable.getSuccessor();
-                if (pred != PeerInfo.NULL_PEER)
-                {
-                    messenger.send(new LastGaspSuccessor(succ), pred.getListeningAddress());
-                }
-                if (succ != PeerInfo.NULL_PEER)
-                {
-                    messenger.send(new LastGaspPredecessor(pred), succ.getListeningAddress());
-                }
-            }
-        }
+        lastGasp();
 
         LOGGER.log(Level.INFO, "Shutting down the Chord layer");
         try
@@ -393,7 +419,17 @@ public abstract class Peer implements Runnable
     private void handleLastGaspPredMsg(LastGaspPredecessor msg) {
 
         PeerInfo pred = msg.getPredecessor();
-        setPredecessor(pred);
+        synchronized (predecessor)
+        {
+            synchronized (storedFiles)
+            {
+                setPredecessor(pred);
+                for(DataItem d: msg.getDataItemList())
+                {
+                    storedFiles.put(d.getID(), d);
+                }
+            }
+        }
         printState();
     }
 

@@ -41,6 +41,7 @@ public class LastGaspSuccessor implements Message<ChordMessageType>
             throw new IllegalStateException("Attempt to write with successor set to NULL_PEER");
 
         out.writeObject(successor);
+
     }
 
     @Override
@@ -48,4 +49,5 @@ public class LastGaspSuccessor implements Message<ChordMessageType>
     {
         this.successor = (PeerInfo) in.readObject();
     }
+
 }
