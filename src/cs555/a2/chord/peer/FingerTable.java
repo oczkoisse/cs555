@@ -56,14 +56,15 @@ final class FingerTable
     {
         synchronized (fingerToPeerMap)
         {
-            // Rest is an optimization to speed up stabilization
             if (fingerToPeerMap.replace(getFinger(k), peerInfo) != null && peerInfo != PeerInfo.NULL_PEER)
             {
+                // An optimization to speed up stabilization
                 ID id = peerInfo.getID();
                 for(int i = k+1; i < size(); i++)
                 {
-                    if(getFinger(i).inInterval(ownID, id) || getFinger(i).compareTo(id) == 0)
-                        setPeerInfo(i, peerInfo);
+                    ID curFinger = getFinger(i);
+                    if(curFinger.inInterval(ownID, id) || curFinger.compareTo(id) == 0)
+                        fingerToPeerMap.replace(curFinger, peerInfo);
                 }
             }
         }

@@ -57,10 +57,9 @@ public abstract class Peer implements Runnable
                     if (succ != PeerInfo.NULL_PEER) {
                         // if you are your own successor
                         if (succ.getID().compareTo(ownInfo.getID()) ==  0) {
-                            synchronized (predecessor)
                             {
                                 PeerInfo pred = getPredecessor();
-                                if (pred.getID().compareTo(ownInfo.getID()) != 0)
+                                if (pred != PeerInfo.NULL_PEER && pred.getID().compareTo(ownInfo.getID()) != 0)
                                     fingerTable.setSuccessor(pred);
                             }
                         } else {
