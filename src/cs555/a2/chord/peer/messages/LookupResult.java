@@ -22,7 +22,7 @@ public class LookupResult implements Message<ChordMessageType>
         this.successor = successor;
         this.lookedUpID = request.getID();
         this.cause = request.getCause();
-        this.path = new ArrayList();
+        this.path = new ArrayList<>();
         for(ID i: request.getPath())
             this.path.add(i);
         this.path.add(successor.getID());
