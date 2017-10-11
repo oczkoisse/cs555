@@ -1,0 +1,36 @@
+This project resides in the package cs555.a1. The project itself is sub-divided into following packages:
+- a1.nodes
+    - Collator: This is the implementation of Collator node
+    - Process: This is the implementation of Process node
+- a1.transport
+    - Receiver: Provides a wrapper around the underlying socket to facilitate creating and closing a connection for receiving messages
+    - Sender: Same as Receiver, but for sending messages
+    - Listener: A Runnable to allow separate thread for receiving incoming connections.
+- a1.messages
+    - Consists of various Message formats to allow setup, send data, and finally leave the system
+- cs555.a1.utility
+    - ConfigReader: A reader to read a config file with each line containing host:port. Useful for both Collator and Process
+    - TokenParser: Parser to parser strings as path, socket address, and integer. Useful for parsing command line arguments, as well as for implementing ConfigReader
+
+The working of the system is as follows:
+Each Process node starts up and sends READY message to Collator. Collator validates the READY message by verifying if it is from one of the hosts as given in input config file.
+Once all READY messages have been received, the Collator broadcasts INITIATE message to all Process nodes. On receiving the INITIATE message, the Process nodes starts sending messages in rounds.
+When it is done, it broadcasts a DONE message to other nodes except Collator. When a PROCESS has received DONE from all other nodes, it knows that it has received all messages that it needs.
+But it still waits to confirm if it has sent all messages as well. When it does, it sends a SUMMARY to Collator. The Collator, on receiving SUMMARY from all the nodes, prints the final summary and exits.
+
+The system is designed as follows. Only two classes provide a main() method, namely a1.nodes.Collator and a1.nodes.Process. They can be invoked as follows:
+
+java a1.nodes.Process <PORT> <CONFIG_FILE_PATH>
+
+java a1.nodes.Collator <PORT> <COLLATOR_HOST:COLLATOR_PORT> <CONFIG_FILE_PATH>
+
+To compile and rcompile:
+make
+make clean && make
+
+TO generate config files for each process, execute
+python configure.py config.txt <binary_dir_for_project>
+
+The config.txt is a file containing listening addresses for each component of the sytem, the first line being the address of Collator.
+By executing the above script, all necessary config files are generated: config0.txt for Collator, and config1.txt onwards for other nodes.
+It also outputs the invocations needed to run the process, these can be piped to shell to run in separate terminals, or can be run manually.
