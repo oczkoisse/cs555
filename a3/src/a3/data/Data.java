@@ -83,8 +83,6 @@ public class Data
     private static String parseString(String s)
     {
         s = s.trim();
-        if (s.equals("nan"))
-            return null;
         return s;
     }
 
@@ -101,7 +99,7 @@ public class Data
         String[] elements = s.split("\"\"");
         for(int i = 1; i < elements.length; i+=2)
         {
-            parsed.add(elements[i].trim());
+            parsed.add(parseString(elements[i]));
         }
         return Collections.unmodifiableList(parsed);
     }
