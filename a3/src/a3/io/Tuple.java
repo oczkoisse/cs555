@@ -27,26 +27,22 @@ public abstract class Tuple<T> implements Writable
     public Tuple()
     {
         this.backingList = new ArrayList<T>();
-    };
+    }
 
     /**
      * A fixed size list of {@link T}
-     * @param elements one or more elements to initialize this Tuple. {@code null}s are accepted
+     * @param elements zero or more elements to initialize this Tuple. {@code null}s are accepted
      */
     public Tuple(T... elements)
     {
         this();
-        if (elements.length == 0)
-            throw new IllegalArgumentException("At least one element must be supplied while initializing");
-        Collections.addAll(this.backingList, elements);
+        set(elements);
     }
 
     public Tuple(List<T> elements)
     {
         this();
-        if (elements.size() == 0)
-            throw new IllegalArgumentException("At least one element must be supplied while initializing");
-        this.backingList.addAll(elements);
+        set(elements);
     }
 
     /**
@@ -85,9 +81,10 @@ public abstract class Tuple<T> implements Writable
     public final void readFields(DataInput in) throws IOException
     {
         // VERY IMPORTANT
-        // Clear the internal list to allow repeated calls o readFields
-        this.backingList.clear();
+        // Clear the internal list to allow repeated calls to readFields
+        clear();
         int sz = in.readInt();
+
         for(int i=0; i < sz; i++)
         {
             this.backingList.add(readElement(in));
@@ -111,6 +108,24 @@ public abstract class Tuple<T> implements Writable
         }
     }
 
+    public final void set(T... elements)
+    {
+        clear();
+        Collections.addAll(this.backingList, elements);
+    }
+
+    public final void set(List<T> elements)
+    {
+        this.backingList.clear();
+        this.backingList.addAll(elements);
+    }
+
+    public final void set(int index, T element)
+    {
+        checkIndex(index);
+        this.backingList.set(index, element);
+    }
+
     @Override
     public String toString()
     {
@@ -124,11 +139,18 @@ public abstract class Tuple<T> implements Writable
                 s.append(" " + e.toString() + ",");
         }
 
-        s.setCharAt(s.length() - 1, ' ');
+        if (s.charAt(s.length() - 1) == ',')
+            s.setCharAt(s.length() - 1, ' ');
 
         s.append(")");
 
         return s.toString();
+    }
+
+    private void checkIndex(int index)
+    {
+        if (index < 0 || index > backingList.size())
+            throw new IndexOutOfBoundsException(index + " out of bounds for a tuple of size " + backingList.size());
     }
 
     /**
@@ -138,8 +160,12 @@ public abstract class Tuple<T> implements Writable
      */
     public final T get(int index)
     {
-        if (index < 0 || index > backingList.size())
-            throw new IndexOutOfBoundsException(index + " out of bounds for a tuple of size " + backingList.size());
+        checkIndex(index);
         return backingList.get(index);
+    }
+
+    public void clear()
+    {
+        this.backingList.clear();
     }
 }

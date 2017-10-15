@@ -17,20 +17,22 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
-import java.util.concurrent.ThreadLocalRandom;
 
 public class TempoDanceability
 {
     public static class TempoDanceabilityMapper extends Mapper<Object, Text, NullWritable, FloatTuple>
     {
+        private static final FloatTuple tempoAndDanceability = new FloatTuple(null, null);
+
         @Override
         protected void map(Object o, Text contents, Context context) throws IOException, InterruptedException
         {
             Data d = new Data(contents.toString());
             NullWritable nw = NullWritable.get();
             if (!d.isHeader()) {
-                context.write(nw, new FloatTuple(d.getTempo(), d.getDanceability()));
+                tempoAndDanceability.set(0, d.getTempo());
+                tempoAndDanceability.set(1, d.getDanceability());
+                context.write(nw, tempoAndDanceability);
             }
         }
     }
