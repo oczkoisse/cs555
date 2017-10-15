@@ -24,7 +24,7 @@ public class Data
                        ARTIST_TERMS = 13,
                        DANCEABILITY = 21,
                        LOUDNESS = 27,
-                       SONG_HOTNESS = 43,
+                       SONG_HOTNESS = 42,
                        TEMPO = 47;
 
     public Data(String line)
@@ -71,8 +71,12 @@ public class Data
     private static Float parseFloat(String s)
     {
         s = s.trim();
+        if (s.equalsIgnoreCase("nan"))
+            return null;
+
         try {
             return Float.parseFloat(s);
+
         }
         catch(NumberFormatException ex)
         {
@@ -82,8 +86,7 @@ public class Data
 
     private static String parseString(String s)
     {
-        s = s.trim();
-        return s;
+        return s.trim();
     }
 
 

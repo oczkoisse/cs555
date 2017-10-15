@@ -1,6 +1,7 @@
 package a3.tests;
 
 import a3.data.Data;
+import a3.io.FloatTuple;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -28,6 +29,8 @@ class DataTest
                     String id = d.getEchoNestId();
                     String artistName = d.getArtistName();
                     List<String> artistTerms = d.getArtistTerms();
+                    FloatTuple f = new FloatTuple(d.getTempo(), d.getDanceability());
+                    System.out.println(f);
                     Float danceability = d.getDanceability();;
                     Float loudness = d.getLoudness();
                     Float songHotness = d.getSongHotness();
@@ -40,13 +43,13 @@ class DataTest
                     assertNotNull(loudness);
                     assertNotNull(tempo);
 
-                    System.out.println(id);
-                    System.out.println(artistName);
-                    System.out.println(artistTerms);
-                    System.out.println(danceability);
-                    System.out.println(loudness);
-                    System.out.println(songHotness);
-                    System.out.println(tempo);
+                    //System.out.println(id);
+                    //System.out.println(artistName);
+                    //System.out.println(artistTerms);
+                    //System.out.println(danceability);
+                    //System.out.println(loudness);
+                    //System.out.println(songHotness);
+                    //System.out.println(tempo);
                 }
             }
         }

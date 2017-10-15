@@ -1,85 +1,46 @@
 package a3.io;
 
+import org.apache.hadoop.io.FloatWritable;
+
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.io.Writable;
-
-public class FloatTuple implements Writable {
-	
-	private List<Float> backingList = new ArrayList<>();
+public class FloatTuple extends Tuple<Float> {
 	
 	public FloatTuple()
 	{
+		super();
 	}
 	
 	/**
 	 * A fixed size list of Floats
-	 * @param rest one or more Floats with which to initializing this FloatTuple
+	 * @param elements one or more Floats to initialize this tuple
 	 */
-	public FloatTuple(float first, float... rest)
+	public FloatTuple(Float... elements)
 	{
-		backingList.add(first);
-
-		for(float f: rest)
-		    backingList.add(f);
-	}
-	
-	public int size()
-	{
-		return backingList.size();
+		super(elements);
 	}
 
-	public void readFields(DataInput in) throws IOException {
-		int sz = in.readInt();
-
-		for(int i=0; i < sz; i++)
-		{
-			this.backingList.add(in.readFloat());
-		}
-	}
-
-	public static FloatTuple read(DataInput in) throws IOException
+	public FloatTuple(List<Float> elements)
     {
-        FloatTuple ft = new FloatTuple();
-        ft.readFields(in);
-        return ft;
+        super(elements);
     }
 
-	public void write(DataOutput out) throws IOException {
-
-	    int sz = this.backingList.size();
-	    out.writeInt(sz);
-
-		for(Float e: this.backingList)
-		{
-			out.writeFloat(e);
-		}
-	}
-	
-	public String toString()
+	@Override
+	protected Float readElement(DataInput in) throws IOException
 	{
-		StringBuilder s = new StringBuilder();
-		s.append("[");
-		for(Float e: backingList)
-		{
-			s.append(" " + e.floatValue() + ",");
-		}
-		
-		s.setCharAt(s.length() - 1, ' ');
-		
-		s.append("]");
-		
-		return s.toString();
+	    FloatWritable fw = new FloatWritable();
+	    fw.readFields(in);
+	    Float f = fw.get();
+		return Float.isNaN(f) ? null : f;
 	}
 
-	public Float get(int index)
-    {
-        if (index < 0 || index > backingList.size())
-            throw new IndexOutOfBoundsException(index + " out of bounds for list of size " + backingList.size());
-        return backingList.get(index);
-    }
+	@Override
+	protected void writeElement(DataOutput out, Float f) throws IOException
+	{
+        FloatWritable fw = new FloatWritable(f == null ? Float.NaN : f);
+        fw.write(out);
+	}
 }

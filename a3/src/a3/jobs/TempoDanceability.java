@@ -4,8 +4,8 @@ import a3.data.Data;
 import a3.io.FloatTuple;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.ByteWritable;
 import org.apache.hadoop.io.FloatWritable;
+import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -14,69 +14,66 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
-public class TempoDanceabilityJob
+public class TempoDanceability
 {
-    public static class TempoDanceabilityMapper extends Mapper<Object, Text, ByteWritable, FloatTuple>
+    public static class TempoDanceabilityMapper extends Mapper<Object, Text, NullWritable, FloatTuple>
     {
-        private static final ByteWritable one = new ByteWritable((byte)1);
-
         @Override
         protected void map(Object o, Text contents, Context context) throws IOException, InterruptedException
         {
             Data d = new Data(contents.toString());
+            NullWritable nw = NullWritable.get();
             if (!d.isHeader()) {
-                Float tempo = d.getTempo();
-                Float danceability = d.getDanceability();
-                if (tempo != null && danceability != null)
-                    context.write(one, new FloatTuple(d.getTempo(), d.getDanceability()));
+                context.write(nw, new FloatTuple(d.getTempo(), d.getDanceability()));
             }
         }
     }
 
-    public static class TempoDanceabilityReducer extends Reducer<ByteWritable, FloatTuple, Text, FloatWritable>
+    public static class TempoDanceabilityReducer extends Reducer<NullWritable, FloatTuple, Text, FloatWritable>
     {
         @Override
-        protected void reduce(ByteWritable one, Iterable<FloatTuple> tempoDanceability, Context context) throws IOException, InterruptedException
+        protected void reduce(NullWritable x, Iterable<FloatTuple> tempoDanceability, Context context) throws IOException, InterruptedException
         {
-            float tempo = 0.0f;
+            float tempoAverage = 0.0f;
+            int tempoCount = 0;
+            float danceabilityMedian = 0.0f;
+            List<Float> danceabilities = new ArrayList<>();
 
-            float median = 0.0f;
-
-            int size = 0;
             for(FloatTuple td: tempoDanceability)
             {
-                tempo += td.get(0);
-                size++;
+                Float tempo = td.get(0);
+                if (tempo != null)
+                {
+                    tempoAverage += tempo;
+                    tempoCount++;
+                }
+
+                Float danceability = td.get(1);
+                if (danceability != null)
+                    danceabilities.add(danceability);
             }
 
-            tempo /= size;
+            if (tempoCount != 0)
+                tempoAverage /= tempoCount;
 
-            int i = 0;
-            for(FloatTuple td: tempoDanceability)
+            if(danceabilities.size() != 0)
             {
-                if (size % 2 == 0)
-                {
-                    if (i == size/2 - 1)
-                        median += td.get(1);
-                    else if (i == size/2)
-                    {
-                        median += td.get(1);
-                        median /= 2.0f;
-                        median /= 2.0f;
-                        break;
-                    }
-                }
-                else if (i == size/2)
-                {
-                    median = td.get(1);
-                    break;
-                }
-                i++;
+                Collections.sort(danceabilities);
+                int mid = danceabilities.size() / 2;
+                if (danceabilities.size() % 2 == 0)
+                    danceabilityMedian = (danceabilities.get(mid) + danceabilities.get(mid - 1)) / 2.0f;
+                else
+                    danceabilityMedian = danceabilities.get(mid);
             }
 
-            context.write(new Text("Average Tempo: "), new FloatWritable(tempo));
-            context.write(new Text("Median Danceability: "), new FloatWritable(median));
+            context.write(new Text("Average Tempo: "), new FloatWritable(tempoAverage));
+            context.write(new Text("Median Danceability: "), new FloatWritable(danceabilityMedian));
         }
     }
 
@@ -87,13 +84,13 @@ public class TempoDanceabilityJob
             // Give the MapRed job a name. You'll see this name in the Yarn webapp.
             Job job = Job.getInstance(conf, "q2_3");
             // Current class.
-            job.setJarByClass(TempoDanceabilityJob.class);
+            job.setJarByClass(TempoDanceability.class);
             // Mapper
             job.setMapperClass(TempoDanceabilityMapper.class);
             // Reducer
             job.setReducerClass(TempoDanceabilityReducer.class);
             // Outputs from the Mapper.
-            job.setMapOutputKeyClass(ByteWritable.class);
+            job.setMapOutputKeyClass(NullWritable.class);
             job.setMapOutputValueClass(FloatTuple.class);
             // Outputs from Reducer. It is sufficient to set only the following two properties
             // if the Mapper and Reducer has same key and value io. It is set separately for
