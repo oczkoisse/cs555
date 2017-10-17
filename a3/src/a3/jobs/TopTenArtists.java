@@ -1,11 +1,9 @@
 package a3.jobs;
 
 import a3.data.Data;
-import a3.io.StringTuple;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -21,8 +19,8 @@ public class TopTenArtists
 {
     public static class TopTenArtistsMapper extends Mapper<Object, Text, FloatWritable, Text>
     {
-        private static final FloatWritable tempo = new FloatWritable();
-        private static final Text artistName = new Text();
+        private final FloatWritable tempo = new FloatWritable();
+        private final Text artistName = new Text();
 
         @Override
         public void map(Object o, Text contents, Context context) throws IOException, InterruptedException
@@ -45,7 +43,13 @@ public class TopTenArtists
     public static class TopTenArtistsCombiner extends Reducer<FloatWritable, Text, FloatWritable, Text>
     {
         private static final int N = 10;
-        private static Set<String> topNArtists = new HashSet<>();
+        private Set<String> topNArtists = new HashSet<>();
+
+        @Override
+        protected void setup(Context context)
+        {
+            topNArtists.clear();
+        }
 
         @Override
         public void reduce(FloatWritable tempo, Iterable<Text> artists, Context context) throws IOException, InterruptedException
@@ -69,7 +73,13 @@ public class TopTenArtists
     public static class TopTenArtistsReducer extends Reducer<FloatWritable, Text, Text, FloatWritable>
     {
         private static final int N = 10;
-        private static Set<String> topNArtists = new HashSet<>();
+        private Set<String> topNArtists = new HashSet<>();
+
+        @Override
+        protected void setup(Context context)
+        {
+            topNArtists.clear();
+        }
 
         @Override
         public void reduce(FloatWritable tempo, Iterable<Text> artists, Context context) throws IOException, InterruptedException

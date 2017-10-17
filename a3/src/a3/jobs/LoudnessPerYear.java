@@ -19,8 +19,8 @@ public class LoudnessPerYear
 {
     public static class LoudnessPerYearMapper extends Mapper<Object, Text, IntWritable, FloatWritable>
     {
-        private static final FloatWritable loudness = new FloatWritable(0.0f);
-        private static final IntWritable year = new IntWritable(0);
+        private final FloatWritable loudness = new FloatWritable(0.0f);
+        private final IntWritable year = new IntWritable(0);
 
         @Override
         protected void map(Object o, Text contents, Context context) throws IOException, InterruptedException
@@ -38,7 +38,7 @@ public class LoudnessPerYear
 
     public static class LoudnessPerYearReducer extends Reducer<IntWritable, FloatWritable, IntWritable, FloatWritable>
     {
-        private static final FloatWritable averageLoudness = new FloatWritable(0.0f);
+        private final FloatWritable averageLoudness = new FloatWritable(0.0f);
 
         @Override
         protected void reduce(IntWritable year, Iterable<FloatWritable> loudnesses, Context context) throws IOException, InterruptedException
