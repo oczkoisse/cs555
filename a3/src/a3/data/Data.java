@@ -1,5 +1,7 @@
 package a3.data;
 
+import org.apache.hadoop.io.WritableUtils;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -17,6 +19,8 @@ public class Data
     private final Float loudness;
     private final Float songHotness;
     private final Float tempo;
+
+    private final String title;
     private final Integer year;
 
     // Field indexes
@@ -27,12 +31,14 @@ public class Data
                        LOUDNESS = 27,
                        SONG_HOTNESS = 42,
                        TEMPO = 47,
+                       TITLE = 50,
                        YEAR = 53;
 
 
 
     public Data(String line)
     {
+        WritableUtils.writeVInt();
         String[] fields = line.split("\\t");
         if (fields.length == 54 && !fields[0].equalsIgnoreCase("analysis_sample_rate"))
         {
@@ -47,6 +53,7 @@ public class Data
             loudness = parseFloat(fields[LOUDNESS]);
             songHotness = parseFloat(fields[SONG_HOTNESS]);
             tempo = parseFloat(fields[TEMPO]);
+            title = parseString(fields[TITLE]);
             year = parseInt(fields[YEAR]);
         }
         else
@@ -59,6 +66,7 @@ public class Data
             loudness = null;
             songHotness = null;
             tempo = null;
+            title = null;
             year = null;
         }
     }
@@ -198,6 +206,11 @@ public class Data
     public Float getTempo()
     {
         return tempo;
+    }
+
+    public String getTitle()
+    {
+        return title;
     }
 
     public Integer getYear()

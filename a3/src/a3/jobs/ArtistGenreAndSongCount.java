@@ -20,7 +20,7 @@ public class ArtistGenreAndSongCount
     {
         private static final Text artistName = new Text();
         private static final StringTuple genresAndCount = new StringTuple();
-        private static final String one = Integer.toString(1);
+        private static final String ONE = Integer.toString(1);
 
         @Override
         protected void map(Object o, Text contents, Context context) throws IOException, InterruptedException
@@ -37,7 +37,7 @@ public class ArtistGenreAndSongCount
                 }
 
                 //song count
-                genres.add(one);
+                genres.add(ONE);
 
                 if(name != null)
                 {
