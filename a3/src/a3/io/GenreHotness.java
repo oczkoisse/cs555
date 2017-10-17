@@ -68,7 +68,7 @@ public class GenreHotness implements WritableComparable<GenreHotness>
         this.genre.set(genre);
     }
 
-    public class Comparator extends WritableComparator
+    public static class Comparator extends WritableComparator
     {
         protected Comparator()
         {
@@ -86,18 +86,20 @@ public class GenreHotness implements WritableComparable<GenreHotness>
         }
     }
 
-    public class GenrePartitioner extends Partitioner<GenreHotness, Object>
+    public static class GenrePartitioner extends Partitioner<GenreHotness, Object>
     {
+        private Text genre = new Text();
         @Override
         public int getPartition(GenreHotness key, Object val, int numPartitions) {
-            int hash = key.getGenre().hashCode();
+            genre.set(key.getGenre());
+            int hash = genre.hashCode();
             int partition = hash % numPartitions;
             return partition;
         }
 
     }
 
-    public class GenreGroupingComparator extends WritableComparator {
+    public static class GenreGroupingComparator extends WritableComparator {
         protected GenreGroupingComparator() {
             super(GenreHotness.class, true);
         }

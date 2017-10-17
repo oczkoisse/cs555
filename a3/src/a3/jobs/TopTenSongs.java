@@ -13,9 +13,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class TopTenSongs
 {
@@ -49,6 +47,7 @@ public class TopTenSongs
         }
     }
 
+
     public static class TopTenSongsCombiner extends Reducer<GenreHotness, StringTuple, GenreHotness, StringTuple>
     {
         private static final int N = 10;
@@ -68,22 +67,26 @@ public class TopTenSongs
         }
     }
 
-    public static class TopTenSongsReducer extends Reducer<GenreHotness, StringTuple, GenreHotness, StringTuple>
+    public static class TopTenSongsReducer extends Reducer<GenreHotness, StringTuple, NullWritable, Text>
     {
         private static final int N = 10;
-        private int count = 0;
+        private final Text results = new Text();
+        private static final NullWritable nw = NullWritable.get();
+
         @Override
         protected void setup(Context context)
         {
-            count = 0;
+            results.clear();
         }
 
         @Override
         public void reduce(GenreHotness genreHotness, Iterable<StringTuple> titleNames, Context context) throws IOException, InterruptedException
         {
+            int count = 0;
             if (count < N) {
                 for (StringTuple titleName : titleNames) {
-                    context.write(genreHotness, titleName);
+                    results.set(String.join("\t", genreHotness.getGenre(), genreHotness.getHotness().toString(), titleName.toString()));
+                    context.write(nw, results);
                     count++;
                     if (count == N)
                         break;
@@ -97,29 +100,31 @@ public class TopTenSongs
         try {
             Configuration conf = new Configuration();
             // Give the MapRed job a name. You'll see this name in the Yarn webapp.
-            Job job = Job.getInstance(conf, "q4");
+            Job job = Job.getInstance(conf, "q5");
             // Current class.
-            job.setJarByClass(TopTenArtists.class);
+            job.setJarByClass(TopTenSongs.class);
             // Mapper
-            job.setMapperClass(TopTenArtists.TopTenArtistsMapper.class);
+            job.setMapperClass(TopTenSongs.TopTenSongsMapper.class);
             // Combiner.
-            job.setCombinerClass(TopTenArtists.TopTenArtistsCombiner.class);
+            job.setCombinerClass(TopTenSongs.TopTenSongsCombiner.class);
             // Reducer
-            job.setReducerClass(TopTenArtists.TopTenArtistsReducer.class);
+            job.setReducerClass(TopTenSongs.TopTenSongsReducer.class);
 
             // How to sort keys before passing to reducer/combiner
-            job.setSortComparatorClass(TopTenArtists.DecreasingFloatWritableComparator.class);
-            // Need to get tempo from all mappers in order to say which are the top N
-            job.setNumReduceTasks(1);
+            job.setSortComparatorClass(GenreHotness.Comparator.class);
+            // How to group keys for a single call to reduce()
+            job.setGroupingComparatorClass(GenreHotness.GenreGroupingComparator.class);
+            // How to partition data
+            job.setPartitionerClass(GenreHotness.GenrePartitioner.class);
 
             // Outputs from the Mapper.
-            job.setMapOutputKeyClass(FloatWritable.class);
-            job.setMapOutputValueClass(Text.class);
+            job.setMapOutputKeyClass(GenreHotness.class);
+            job.setMapOutputValueClass(StringTuple.class);
             // Outputs from Reducer. It is sufficient to set only the following two properties
             // if the Mapper and Reducer has same key and value io. It is set separately for
             // elaboration.
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(FloatWritable.class);
+            job.setOutputKeyClass(NullWritable.class);
+            job.setOutputValueClass(Text.class);
 
             // path to input in HDFS
             FileInputFormat.addInputPath(job, new Path(args[0]));

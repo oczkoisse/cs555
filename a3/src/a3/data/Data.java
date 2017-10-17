@@ -38,7 +38,6 @@ public class Data
 
     public Data(String line)
     {
-        WritableUtils.writeVInt();
         String[] fields = line.split("\\t");
         if (fields.length == 54 && !fields[0].equalsIgnoreCase("analysis_sample_rate"))
         {
