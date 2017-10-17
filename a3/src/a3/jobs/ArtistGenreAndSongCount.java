@@ -14,45 +14,67 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import java.io.IOException;
 import java.util.*;
 
-public class ArtistGenre
+public class ArtistGenreAndSongCount
 {
-    public static class ArtistGenreMapper extends Mapper<Object, Text, Text, StringTuple>
+    public static class ArtistGenreAndSongCountMapper extends Mapper<Object, Text, Text, StringTuple>
     {
+        private static final Text artistName = new Text();
+        private static final StringTuple genresAndCount = new StringTuple();
+        private static final String one = Integer.toString(1);
 
         @Override
         protected void map(Object o, Text contents, Context context) throws IOException, InterruptedException
         {
             Data d = new Data(contents.toString());
-            if (!d.isHeader()) {
+            if (d.isValid()) {
+                String name = d.getArtistName();
                 List<String> genres = d.getArtistTerms();
-                if(genres != null && genres.size() > 0)
-                    context.write(new Text(d.getArtistName()), new StringTuple(genres));
+                if (genres == null) {
+                    genres = new ArrayList<>();
+                }
+                else {
+                    genresAndCount.set(genres);
+                }
+
+                //song count
+                genres.add(one);
+
+                if(name != null)
+                {
+                    artistName.set(name);
+                    genresAndCount.set(genres);
+                    context.write(artistName, genresAndCount);
+                }
             }
         }
     }
 
-    public static class ArtistGenreReducer extends Reducer<Text, StringTuple, Text, Text>
+    public static class ArtistGenreAndSongCountReducer extends Reducer<Text, StringTuple, Text, Text>
     {
+        private static final Map<String, Integer> counts = new HashMap<>();
+        private static final Set<String> mostCommonGenres = new HashSet<>();
+        private static final Text results = new Text();
+
         @Override
         protected void reduce(Text artist, Iterable<StringTuple> genres, Context context) throws IOException, InterruptedException
         {
-            String mostCommonGenre = null;
+            counts.clear();
+            mostCommonGenres.clear();
 
-            HashMap<String, Integer> counts = new HashMap<>();
-
+            int songCount = 0;
             for(StringTuple genreTuple: genres)
             {
-                for(int i=0; i<genreTuple.size(); i++) {
+                for(int i=0; i<genreTuple.size()-1 ; i++) {
                     String genre = genreTuple.get(i);
                     counts.putIfAbsent(genre, 0);
                     counts.replace(genre, counts.get(genre) + 1);
                 }
+                songCount += Integer.parseInt(genreTuple.get(genreTuple.size()-1));
             }
 
-            Set<String> mostCommonGenres = new HashSet<>();
             Integer mostCommonGenreCount = Integer.MIN_VALUE;
             for(Map.Entry<String,Integer> entry : counts.entrySet()) {
-                if(entry.getValue() > mostCommonGenreCount) {
+                if(entry.getValue().compareTo(mostCommonGenreCount) > 0) {
                     mostCommonGenres.clear();
                     mostCommonGenres.add(entry.getKey());
                     mostCommonGenreCount = entry.getValue();
@@ -63,37 +85,45 @@ public class ArtistGenre
                 }
             }
 
+            String mostCommonGenre = null;
             if (mostCommonGenres.size() > 0) {
                 mostCommonGenre = String.join(", ", mostCommonGenres);
                 mostCommonGenre += " (" + mostCommonGenreCount + ")";
             }
-
+            results.set(String.format("%d\t%s", songCount, mostCommonGenre));
             if (mostCommonGenre != null)
-                context.write(artist, new Text(mostCommonGenre));
+                context.write(artist, results);
         }
     }
 
-    /**
-    public static class ArtistGenreCombiner extends Reducer<Text, StringTuple, Text, StringTuple>
+
+    /*
+    public static class ArtistGenreAndSongCountCombiner extends Reducer<Text, StringTuple, Text, StringTuple>
     {
+        private static final Map<String, Integer> counts = new HashMap<>();
+        private static final Set<String> mostCommonGenres = new HashSet<>();
+        private static final StringTuple results = new StringTuple();
+
         @Override
         protected void reduce(Text artist, Iterable<StringTuple> genres, Context context) throws IOException, InterruptedException
         {
-            HashMap<String, Integer> counts = new HashMap<>();
+            counts.clear();
+            mostCommonGenres.clear();
 
+            int songCount = 0;
             for(StringTuple genreTuple: genres)
             {
-                for(int i=0; i<genreTuple.size(); i++) {
+                for(int i=0; i<genreTuple.size()-1 ; i++) {
                     String genre = genreTuple.get(i);
                     counts.putIfAbsent(genre, 0);
                     counts.replace(genre, counts.get(genre) + 1);
                 }
+                songCount += Integer.parseInt(genreTuple.get(genreTuple.size()-1));
             }
 
-            Set<String> mostCommonGenres = new HashSet<>();
             Integer mostCommonGenreCount = Integer.MIN_VALUE;
             for(Map.Entry<String,Integer> entry : counts.entrySet()) {
-                if(entry.getValue() > mostCommonGenreCount) {
+                if(entry.getValue().compareTo(mostCommonGenreCount)>0) {
                     mostCommonGenres.clear();
                     mostCommonGenres.add(entry.getKey());
                     mostCommonGenreCount = entry.getValue();
@@ -116,15 +146,15 @@ public class ArtistGenre
         try {
             Configuration conf = new Configuration();
             // Give the MapRed job a name. You'll see this name in the Yarn webapp.
-            Job job = Job.getInstance(conf, "q1");
+            Job job = Job.getInstance(conf, "q1_7");
             // Current class.
-            job.setJarByClass(ArtistGenre.class);
+            job.setJarByClass(ArtistGenreAndSongCount.class);
             // Mapper
-            job.setMapperClass(ArtistGenreMapper.class);
+            job.setMapperClass(ArtistGenreAndSongCountMapper.class);
             // Combiner.
-            //job.setCombinerClass(ArtistGenreCombiner.class);
+            //job.setCombinerClass(ArtistGenreAndSongCountCombiner.class);
             // Reducer
-            job.setReducerClass(ArtistGenreReducer.class);
+            job.setReducerClass(ArtistGenreAndSongCountReducer.class);
             // Outputs from the Mapper.
             job.setMapOutputKeyClass(Text.class);
             job.setMapOutputValueClass(StringTuple.class);

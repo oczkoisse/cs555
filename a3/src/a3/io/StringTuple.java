@@ -9,6 +9,8 @@ import java.util.List;
 
 public class StringTuple extends Tuple<String>
 {
+    private static final String nullString = "\0\0";
+
     public StringTuple()
     {
         super();
@@ -27,12 +29,13 @@ public class StringTuple extends Tuple<String>
     @Override
     protected String readElement(DataInput in) throws IOException
     {
-        return Text.readString(in);
+        String e = Text.readString(in);
+        return e.equals(nullString) ? null : e;
     }
 
     @Override
     protected void writeElement(DataOutput out, String e) throws IOException
     {
-        Text.writeString(out, e);
+        Text.writeString(out, e == null ? nullString : e);
     }
 }

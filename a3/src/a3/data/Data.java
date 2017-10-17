@@ -6,8 +6,8 @@ import java.util.List;
 
 public class Data
 {
-    // Check against header
-    private boolean header;
+    // Check against validity
+    private boolean valid = false;
 
     // Fields
     private final String echoNestId;
@@ -17,6 +17,7 @@ public class Data
     private final Float loudness;
     private final Float songHotness;
     private final Float tempo;
+    private final Integer year;
 
     // Field indexes
     public static final int ECHO_NEST_ID = 4,
@@ -25,27 +26,20 @@ public class Data
                        DANCEABILITY = 21,
                        LOUDNESS = 27,
                        SONG_HOTNESS = 42,
-                       TEMPO = 47;
+                       TEMPO = 47,
+                       YEAR = 53;
+
+
 
     public Data(String line)
     {
         String[] fields = line.split("\\t");
-        for(int i = 0; i<fields.length; i++)
-            fields[i] = fields[i].trim();
-
-        if(fields[0].equalsIgnoreCase("analysis_sample_rate")) {
-            header = true;
-            echoNestId = null;
-            artistName = null;
-            artistTerms = null;
-            danceability = null;
-            loudness = null;
-            songHotness = null;
-            tempo = null;
-        }
-        else
+        if (fields.length == 54 && !fields[0].equalsIgnoreCase("analysis_sample_rate"))
         {
-            header = false;
+            valid = true;
+            for(int i = 0; i<fields.length; i++)
+                fields[i] = fields[i].trim();
+
             echoNestId = parseString(fields[ECHO_NEST_ID]);
             artistName = parseString(fields[ARTIST_NAME]);
             artistTerms = parseStringArray(fields[ARTIST_TERMS]);
@@ -53,6 +47,19 @@ public class Data
             loudness = parseFloat(fields[LOUDNESS]);
             songHotness = parseFloat(fields[SONG_HOTNESS]);
             tempo = parseFloat(fields[TEMPO]);
+            year = parseInt(fields[YEAR]);
+        }
+        else
+        {
+            valid = false;
+            echoNestId = null;
+            artistName = null;
+            artistTerms = null;
+            danceability = null;
+            loudness = null;
+            songHotness = null;
+            tempo = null;
+            year = null;
         }
     }
 
@@ -104,7 +111,7 @@ public class Data
         {
             parsed.add(parseString(elements[i]));
         }
-        return Collections.unmodifiableList(parsed);
+        return parsed;
     }
 
     private static boolean isNumericArray(String s)
@@ -130,7 +137,7 @@ public class Data
         {
             elements = null;
         }
-        return Collections.unmodifiableList(parsed);
+        return parsed;
     }
 
     private static List<Float> parseFloatArray(String s)
@@ -150,12 +157,12 @@ public class Data
         {
             elements = null;
         }
-        return Collections.unmodifiableList(parsed);
+        return parsed;
     }
 
-    public boolean isHeader()
+    public boolean isValid()
     {
-        return header;
+        return valid;
     }
 
     public String getEchoNestId()
@@ -191,5 +198,10 @@ public class Data
     public Float getTempo()
     {
         return tempo;
+    }
+
+    public Integer getYear()
+    {
+        return year;
     }
 }

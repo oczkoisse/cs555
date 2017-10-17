@@ -110,13 +110,17 @@ public abstract class Tuple<T> implements Writable
 
     public final void set(T... elements)
     {
+        if(elements == null)
+            throw new NullPointerException("Can't set a tuple with a null array");
         clear();
         Collections.addAll(this.backingList, elements);
     }
 
     public final void set(List<T> elements)
     {
-        this.backingList.clear();
+        if(elements == null)
+            throw new NullPointerException("Can't set a tuple with a null list");
+        clear();
         this.backingList.addAll(elements);
     }
 

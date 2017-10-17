@@ -29,7 +29,7 @@ public class TempoDanceability
         {
             Data d = new Data(contents.toString());
             NullWritable nw = NullWritable.get();
-            if (!d.isHeader()) {
+            if (d.isValid()) {
                 tempoAndDanceability.set(0, d.getTempo());
                 tempoAndDanceability.set(1, d.getDanceability());
                 context.write(nw, tempoAndDanceability);
