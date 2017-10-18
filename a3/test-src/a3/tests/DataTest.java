@@ -17,7 +17,7 @@ class DataTest
     @Test
     void parseTSV()
     {
-        try (FileInputStream fin = new FileInputStream(getClass().getResource("/1.tsv").getPath());
+        try (FileInputStream fin = new FileInputStream(getClass().getResource("/2.tsv").getPath());
              InputStreamReader ins = new InputStreamReader(fin);
              BufferedReader buf = new BufferedReader(ins))
         {
@@ -25,12 +25,13 @@ class DataTest
             while((line = buf.readLine()) != null)
             {
                 Data d = new Data(line);
-                if (!d.isHeader()) {
+                if (d.isValid()) {
                     String id = d.getEchoNestId();
                     String artistName = d.getArtistName();
                     List<String> artistTerms = d.getArtistTerms();
-                    FloatTuple f = new FloatTuple(d.getTempo(), d.getDanceability());
-                    System.out.println(f);
+                    List<Float> artistTermsFreq = d.getArtistTermsFreq();
+                    System.out.println(artistTerms);
+                    System.out.println(artistTermsFreq);
                     Float danceability = d.getDanceability();;
                     Float loudness = d.getLoudness();
                     Float songHotness = d.getSongHotness();

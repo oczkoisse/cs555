@@ -69,9 +69,7 @@ public class TempoDanceability
         {
             // Should already be sorted
             // 0 danceability means not analyzed
-            Float d = danceability.get();
-            if (!d.equals(0.0f))
-                danceabilities.add(danceability.get());
+            danceabilities.add(danceability.get());
 
             for(FloatWritable tempo: tempos)
             {

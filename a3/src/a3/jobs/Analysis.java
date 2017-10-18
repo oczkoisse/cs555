@@ -26,7 +26,7 @@ public class Analysis {
         else
         {
             int lastDigit = year % 10;
-            int decadeDigit = (year - lastDigit) % 10;
+            int decadeDigit = ((year - lastDigit) / 10) % 10;
             return (byte)decadeDigit;
         }
     }
@@ -65,6 +65,8 @@ public class Analysis {
             if (d.isValid())
             {
                 int year = d.getYear();
+                if (year == 0)
+                    return;
                 int encodedYear = encodeYear(year);
                 String decade = yearToDecade(encodedYear);
                 for(String g: d.getArtistTerms())
