@@ -29,13 +29,13 @@ public class ArtistGenreAndSongCount
             if (d.isValid()) {
                 String name = d.getArtistName();
                 List<String> popularArtistTerms = d.getPopularArtistTerms();
+                if (popularArtistTerms == null)
+                    popularArtistTerms = new ArrayList<>();
 
                 artistName.set(name);
-                if (popularArtistTerms != null) {
-                    popularArtistTerms.add(ONE);
-                    genresAndCount.set(popularArtistTerms);
-                    context.write(artistName, genresAndCount);
-                }
+                popularArtistTerms.add(ONE);
+                genresAndCount.set(popularArtistTerms);
+                context.write(artistName, genresAndCount);
             }
         }
     }
