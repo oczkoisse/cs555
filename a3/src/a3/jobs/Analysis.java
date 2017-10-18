@@ -13,6 +13,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
+import java.util.List;
 
 // Genre popularity over decades
 public class Analysis {
@@ -21,7 +22,7 @@ public class Analysis {
     {
         if (year == 0)
             return -1;
-        else if (year >= 2000 && year <= 2010)
+        else if (year >= 2000)
             return 10;
         else
         {
@@ -69,10 +70,14 @@ public class Analysis {
                     return;
                 int encodedYear = encodeYear(year);
                 String decade = yearToDecade(encodedYear);
-                for(String g: d.getArtistTerms())
+                List<String> popularArtistTerms = d.getPopularArtistTerms();
+                if (popularArtistTerms != null)
                 {
-                    decadeGenre.set(decade+";"+g);
-                    context.write(decadeGenre, ONE);
+                    for(String g: popularArtistTerms)
+                    {
+                        decadeGenre.set(decade+";"+g);
+                        context.write(decadeGenre, ONE);
+                    }
                 }
             }
         }

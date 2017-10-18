@@ -134,17 +134,16 @@ public class Data
     {
         s = s.replaceAll("[\\[\\]]", "");
         List<Integer> parsed = new ArrayList<>();
-        String[] elements = s.split(",");
 
         try{
-            for (String e: elements)
+            for (String e: s.split(","))
             {
                 parsed.add(Integer.parseInt(e.trim()));
             }
         }
         catch(NumberFormatException ex)
         {
-            elements = null;
+            parsed = null;
         }
         return parsed;
     }
@@ -153,17 +152,16 @@ public class Data
     {
         s = s.replaceAll("[\\[\\]]", "");
         List<Float> parsed = new ArrayList<>();
-        String[] elements = s.split(",");
 
         try{
-            for (String e: elements)
+            for (String e: s.split(","))
             {
                 parsed.add(Float.parseFloat(e.trim()));
             }
         }
         catch(NumberFormatException ex)
         {
-            elements = null;
+            parsed = null;
         }
         return parsed;
     }
@@ -203,9 +201,30 @@ public class Data
             {
                 artistTermsWithFreqMap.put(artistTerms.get(i), artistTermsFreq.get(i));
             }
-            return artistTermsWithFreqMap;
+            return artistTermsWithFreqMap.size() > 0 ? artistTermsWithFreqMap: null;
         }
         return null;
+    }
+
+    public List<String> getPopularArtistTerms()
+    {
+        List<String> mostpopularArtistTerms = new ArrayList<>();
+        Map<String, Float> genresFreq = getArtistTermsWithFreq();
+
+        if (genresFreq != null)
+        {
+            Float popularArtistTermsFreq = Float.MIN_VALUE;
+            for (Map.Entry<String, Float> entry : genresFreq.entrySet()) {
+                if (entry.getValue().compareTo(popularArtistTermsFreq) >= 0 && !mostpopularArtistTerms.contains(entry.getKey())) {
+                    if (entry.getValue().compareTo(popularArtistTermsFreq) > 0) {
+                        mostpopularArtistTerms.clear();
+                        popularArtistTermsFreq = entry.getValue();
+                    }
+                    mostpopularArtistTerms.add(entry.getKey());
+                }
+            }
+        }
+        return mostpopularArtistTerms.size() > 0 ? mostpopularArtistTerms : null;
     }
 
     public Float getDanceability()
