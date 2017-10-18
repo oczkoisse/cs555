@@ -33,7 +33,7 @@ public class TopTenSongs
                 String n = d.getArtistName();
                 String t = d.getTitle();
                 titleName.set(t, n);
-                if (h != null)
+                if (h != null && genres != null)
                 {
                     genreHotness.setValue(h);
                     for(String g: genres)
