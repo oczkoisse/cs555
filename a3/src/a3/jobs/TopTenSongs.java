@@ -1,7 +1,7 @@
 package a3.jobs;
 
 import a3.data.Data;
-import a3.io.GenreHotness;
+import a3.io.SortedValues;
 import a3.io.StringTuple;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -17,9 +17,9 @@ import java.util.List;
 
 public class TopTenSongs
 {
-    public static class TopTenSongsMapper extends Mapper<Object, Text, GenreHotness, StringTuple>
+    public static class TopTenSongsMapper extends Mapper<Object, Text, SortedValues, StringTuple>
     {
-        private final GenreHotness genreHotness = new GenreHotness();
+        private final SortedValues genreHotness = new SortedValues();
         private final StringTuple titleName = new StringTuple();
 
         @Override
@@ -35,10 +35,10 @@ public class TopTenSongs
                 titleName.set(t, n);
                 if (h != null)
                 {
-                    genreHotness.setHotness(h);
+                    genreHotness.setValue(h);
                     for(String g: genres)
                     {
-                        genreHotness.setGenre(g);
+                        genreHotness.setGroup(g);
                         context.write(genreHotness, titleName);
                     }
 
@@ -48,12 +48,12 @@ public class TopTenSongs
     }
 
 
-    public static class TopTenSongsCombiner extends Reducer<GenreHotness, StringTuple, GenreHotness, StringTuple>
+    public static class TopTenSongsCombiner extends Reducer<SortedValues, StringTuple, SortedValues, StringTuple>
     {
         private static final int N = 10;
 
         @Override
-        public void reduce(GenreHotness genreHotness, Iterable<StringTuple> titleNames, Context context) throws IOException, InterruptedException
+        public void reduce(SortedValues genreHotness, Iterable<StringTuple> titleNames, Context context) throws IOException, InterruptedException
         {
             int count = 0;
             if (count < N) {
@@ -67,7 +67,7 @@ public class TopTenSongs
         }
     }
 
-    public static class TopTenSongsReducer extends Reducer<GenreHotness, StringTuple, NullWritable, Text>
+    public static class TopTenSongsReducer extends Reducer<SortedValues, StringTuple, NullWritable, Text>
     {
         private static final int N = 10;
         private final Text results = new Text();
@@ -80,12 +80,12 @@ public class TopTenSongs
         }
 
         @Override
-        public void reduce(GenreHotness genreHotness, Iterable<StringTuple> titleNames, Context context) throws IOException, InterruptedException
+        public void reduce(SortedValues genreHotness, Iterable<StringTuple> titleNames, Context context) throws IOException, InterruptedException
         {
             int count = 0;
             if (count < N) {
                 for (StringTuple titleName : titleNames) {
-                    results.set(String.join("\t", genreHotness.getGenre(), genreHotness.getHotness().toString(), titleName.toString()));
+                    results.set(String.join("\t", genreHotness.getGroup(), genreHotness.getValue().toString(), titleName.toString()));
                     context.write(nw, results);
                     count++;
                     if (count == N)
@@ -111,14 +111,14 @@ public class TopTenSongs
             job.setReducerClass(TopTenSongs.TopTenSongsReducer.class);
 
             // How to sort keys before passing to reducer/combiner
-            job.setSortComparatorClass(GenreHotness.Comparator.class);
+            job.setSortComparatorClass(SortedValues.Comparator.class);
             // How to group keys for a single call to reduce()
-            job.setGroupingComparatorClass(GenreHotness.GenreGroupingComparator.class);
+            job.setGroupingComparatorClass(SortedValues.GroupingComparator.class);
             // How to partition data
-            job.setPartitionerClass(GenreHotness.GenrePartitioner.class);
+            job.setPartitionerClass(SortedValues.Partitioner.class);
 
             // Outputs from the Mapper.
-            job.setMapOutputKeyClass(GenreHotness.class);
+            job.setMapOutputKeyClass(SortedValues.class);
             job.setMapOutputValueClass(StringTuple.class);
             // Outputs from Reducer. It is sufficient to set only the following two properties
             // if the Mapper and Reducer has same key and value io. It is set separately for

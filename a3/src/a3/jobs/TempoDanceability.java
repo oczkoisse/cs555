@@ -68,7 +68,10 @@ public class TempoDanceability
         protected void reduce(FloatWritable danceability, Iterable<FloatWritable> tempos, Context context) throws IOException, InterruptedException
         {
             // Should already be sorted
-            danceabilities.add(danceability.get());
+            // 0 danceability means not analyzed
+            Float d = danceability.get();
+            if (!d.equals(0.0f))
+                danceabilities.add(danceability.get());
 
             for(FloatWritable tempo: tempos)
             {

@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.util.List;
 
 public class FloatTuple extends Tuple<Float> {
+
+	public static final Float NULL = Float.NaN;
 	
 	public FloatTuple()
 	{

@@ -9,7 +9,7 @@ import java.util.List;
 
 public class StringTuple extends Tuple<String>
 {
-    private static final String nullString = "\0\0";
+    private static final String NULL = "\0\0";
 
     public StringTuple()
     {
@@ -30,12 +30,12 @@ public class StringTuple extends Tuple<String>
     protected String readElement(DataInput in) throws IOException
     {
         String e = Text.readString(in);
-        return e.equals(nullString) ? null : e;
+        return e.equals(NULL) ? null : e;
     }
 
     @Override
     protected void writeElement(DataOutput out, String e) throws IOException
     {
-        Text.writeString(out, e == null ? nullString : e);
+        Text.writeString(out, e == null ? NULL : e);
     }
 }

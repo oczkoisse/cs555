@@ -28,21 +28,19 @@ public class ArtistGenreAndSongCount
             Data d = new Data(contents.toString());
             if (d.isValid()) {
                 String name = d.getArtistName();
-                List<String> genres = d.getArtistTerms();
-                if (genres == null) {
-                    genres = new ArrayList<>();
-                }
-                else {
-                    genresAndCount.set(genres);
+                String mostCommonGenre = null;
+                Map<String, Float> genresFreq = d.getArtistTermsWithFreq();
+                Float mostCommonGenreFreq = Float.MIN_VALUE;
+                for (Map.Entry<String, Float> entry : genresFreq.entrySet()) {
+                    if (entry.getValue().compareTo(mostCommonGenreFreq) > 0) {
+                        mostCommonGenre = entry.getKey();
+                        mostCommonGenreFreq = entry.getValue();
+                    }
                 }
 
-                //song count
-                genres.add(ONE);
-
-                if(name != null)
-                {
-                    artistName.set(name);
-                    genresAndCount.set(genres);
+                artistName.set(name);
+                if (mostCommonGenre != null) {
+                    genresAndCount.set(mostCommonGenre, ONE);
                     context.write(artistName, genresAndCount);
                 }
             }

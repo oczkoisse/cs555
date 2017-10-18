@@ -1,10 +1,9 @@
 package a3.data;
 
-import org.apache.hadoop.io.WritableUtils;
-
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Data
 {
@@ -15,6 +14,7 @@ public class Data
     private final String echoNestId;
     private final String artistName;
     private final List<String> artistTerms;
+    private final List<Float> artistTermsFreq;
     private final Float danceability;
     private final Float loudness;
     private final Float songHotness;
@@ -27,6 +27,7 @@ public class Data
     public static final int ECHO_NEST_ID = 4,
                        ARTIST_NAME = 11,
                        ARTIST_TERMS = 13,
+                       ARTIST_TERMS_FREQ = 14,
                        DANCEABILITY = 21,
                        LOUDNESS = 27,
                        SONG_HOTNESS = 42,
@@ -48,6 +49,7 @@ public class Data
             echoNestId = parseString(fields[ECHO_NEST_ID]);
             artistName = parseString(fields[ARTIST_NAME]);
             artistTerms = parseStringArray(fields[ARTIST_TERMS]);
+            artistTermsFreq = parseFloatArray(fields[ARTIST_TERMS_FREQ]);
             danceability = parseFloat(fields[DANCEABILITY]);
             loudness = parseFloat(fields[LOUDNESS]);
             songHotness = parseFloat(fields[SONG_HOTNESS]);
@@ -61,6 +63,7 @@ public class Data
             echoNestId = null;
             artistName = null;
             artistTerms = null;
+            artistTermsFreq = null;
             danceability = null;
             loudness = null;
             songHotness = null;
@@ -129,8 +132,7 @@ public class Data
 
     private static List<Integer> parseIntArray(String s)
     {
-        s = s.replace("[\\[\\]]", "");
-
+        s = s.replaceAll("[\\[\\]]", "");
         List<Integer> parsed = new ArrayList<>();
         String[] elements = s.split(",");
 
@@ -149,8 +151,7 @@ public class Data
 
     private static List<Float> parseFloatArray(String s)
     {
-        s = s.replace("[\\[\\]]", "");
-
+        s = s.replaceAll("[\\[\\]]", "");
         List<Float> parsed = new ArrayList<>();
         String[] elements = s.split(",");
 
@@ -185,6 +186,26 @@ public class Data
     public List<String> getArtistTerms()
     {
         return artistTerms;
+    }
+
+    public List<Float> getArtistTermsFreq()
+    {
+        return artistTermsFreq;
+    }
+
+    public Map<String, Float> getArtistTermsWithFreq()
+    {
+        if (artistTerms != null && artistTermsFreq != null)
+        {
+            assert artistTerms.size() == artistTermsFreq.size();
+            Map<String, Float> artistTermsWithFreqMap = new HashMap<>();
+            for(int i=0; i<artistTerms.size(); i++)
+            {
+                artistTermsWithFreqMap.put(artistTerms.get(i), artistTermsFreq.get(i));
+            }
+            return artistTermsWithFreqMap;
+        }
+        return null;
     }
 
     public Float getDanceability()
