@@ -28,7 +28,7 @@ public class LoudnessPerYear
             Data d = new Data(contents.toString());
             Float l = d.getLoudness();
             Integer y = d.getYear();
-            if (d.isValid() && y != null && !y.equals(0) && l != null) {
+            if (d.isValid() && !y.equals(0)) {
                 year.set(y);
                 loudness.set(l);
                 context.write(year, loudness);

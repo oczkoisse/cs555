@@ -28,12 +28,12 @@ public class TopTenSongs
             Data d = new Data(contents.toString());
             if(d.isValid())
             {
-                List<String> genres = d.getArtistTerms();
+                List<String> genres = d.getPopularArtistTerms();
                 Float h = d.getSongHotness();
                 String n = d.getArtistName();
                 String t = d.getTitle();
                 titleName.set(t, n);
-                if (h != null)
+                if (h != null && genres != null)
                 {
                     genreHotness.setValue(h);
                     for(String g: genres)
@@ -41,7 +41,6 @@ public class TopTenSongs
                         genreHotness.setGroup(g);
                         context.write(genreHotness, titleName);
                     }
-
                 }
             }
         }

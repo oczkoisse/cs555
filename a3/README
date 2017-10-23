@@ -1,0 +1,16 @@
+Description:
+
+src
+----a3
+--------io Implementation of keys (WritableComparables) and values (Writables) reside here
+--------data Parser for reading dataset
+--------jobs M/R jobs reside here
+
+Building is done in IntelliJ IDEA, automatically linking Hadoop jars to build an output jar a3.jar
+
+To run a particular job,
+./run-a3/run.sh <job_full_name> [sample | full]
+
+job name is like a3.jobs.TopTenSongs
+sample does processing on sampleData
+full does the same on fullData

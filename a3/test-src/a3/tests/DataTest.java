@@ -1,7 +1,6 @@
 package a3.tests;
 
 import a3.data.Data;
-import a3.io.FloatTuple;
 import org.junit.jupiter.api.Test;
 
 import java.io.BufferedReader;
@@ -9,6 +8,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -17,7 +17,7 @@ class DataTest
     @Test
     void parseTSV()
     {
-        try (FileInputStream fin = new FileInputStream(getClass().getResource("/2.tsv").getPath());
+        try (FileInputStream fin = new FileInputStream(getClass().getResource("/null.tsv").getPath());
              InputStreamReader ins = new InputStreamReader(fin);
              BufferedReader buf = new BufferedReader(ins))
         {
@@ -30,8 +30,14 @@ class DataTest
                     String artistName = d.getArtistName();
                     List<String> artistTerms = d.getArtistTerms();
                     List<Float> artistTermsFreq = d.getArtistTermsFreq();
+                    Map<String, Float> x = d.getArtistTermsWithFreq();
+                    List<String> popularArtistTerms = d.getPopularArtistTerms();
+                    //System.out.println(artistName);
                     System.out.println(artistTerms);
                     System.out.println(artistTermsFreq);
+                    System.out.println(x);
+                    System.out.println(popularArtistTerms);
+                    System.out.println("------");
                     Float danceability = d.getDanceability();;
                     Float loudness = d.getLoudness();
                     Float songHotness = d.getSongHotness();

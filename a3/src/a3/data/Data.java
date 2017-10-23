@@ -73,7 +73,7 @@ public class Data
         }
     }
 
-    private static Integer parseInt(String s)
+    public static Integer parseInt(String s)
     {
         s = s.trim();
         try {
@@ -85,7 +85,7 @@ public class Data
         }
     }
 
-    private static Float parseFloat(String s)
+    public static Float parseFloat(String s)
     {
         s = s.trim();
         if (s.equalsIgnoreCase("nan"))
@@ -101,19 +101,19 @@ public class Data
         }
     }
 
-    private static String parseString(String s)
+    public static String parseString(String s)
     {
         return s.trim();
     }
 
 
-    private static boolean isStringArray(String s)
+    public static boolean isStringArray(String s)
     {
         s = s.trim();
         return s.startsWith("\"[\"") && s.endsWith("\"]\"");
     }
 
-    private static List<String> parseStringArray(String s)
+    public static List<String> parseStringArray(String s)
     {
         List<String> parsed = new ArrayList<>();
         String[] elements = s.split("\"\"");
@@ -124,46 +124,51 @@ public class Data
         return parsed;
     }
 
-    private static boolean isNumericArray(String s)
+    public static boolean isNumericArray(String s)
     {
         s = s.trim();
         return s.startsWith("[") && s.endsWith("]");
     }
 
-    private static List<Integer> parseIntArray(String s)
+    public static List<Integer> parseIntArray(String s)
     {
-        s = s.replaceAll("[\\[\\]]", "");
+        s = s.replaceAll("[\\[\\]]", "").trim();
         List<Integer> parsed = new ArrayList<>();
-        String[] elements = s.split(",");
+
+        if (s.equals(""))
+            return parsed;
+
 
         try{
-            for (String e: elements)
+            for (String e: s.split(","))
             {
                 parsed.add(Integer.parseInt(e.trim()));
             }
         }
         catch(NumberFormatException ex)
         {
-            elements = null;
+            parsed = null;
         }
         return parsed;
     }
 
-    private static List<Float> parseFloatArray(String s)
+    public static List<Float> parseFloatArray(String s)
     {
-        s = s.replaceAll("[\\[\\]]", "");
+        s = s.replaceAll("[\\[\\]]", "").trim();
         List<Float> parsed = new ArrayList<>();
-        String[] elements = s.split(",");
+
+        if (s.equals(""))
+            return parsed;
 
         try{
-            for (String e: elements)
+            for (String e: s.split(","))
             {
                 parsed.add(Float.parseFloat(e.trim()));
             }
         }
         catch(NumberFormatException ex)
         {
-            elements = null;
+            parsed = null;
         }
         return parsed;
     }
@@ -203,9 +208,30 @@ public class Data
             {
                 artistTermsWithFreqMap.put(artistTerms.get(i), artistTermsFreq.get(i));
             }
-            return artistTermsWithFreqMap;
+            return artistTermsWithFreqMap.size() > 0 ? artistTermsWithFreqMap: null;
         }
         return null;
+    }
+
+    public List<String> getPopularArtistTerms()
+    {
+        List<String> mostpopularArtistTerms = new ArrayList<>();
+        Map<String, Float> genresFreq = getArtistTermsWithFreq();
+
+        if (genresFreq != null)
+        {
+            Float popularArtistTermsFreq = -Float.MAX_VALUE;
+            for (Map.Entry<String, Float> entry : genresFreq.entrySet()) {
+                if (entry.getValue().compareTo(popularArtistTermsFreq) >= 0 && !mostpopularArtistTerms.contains(entry.getKey())) {
+                    if (entry.getValue().compareTo(popularArtistTermsFreq) > 0) {
+                        mostpopularArtistTerms.clear();
+                        popularArtistTermsFreq = entry.getValue();
+                    }
+                    mostpopularArtistTerms.add(entry.getKey());
+                }
+            }
+        }
+        return mostpopularArtistTerms.size() > 0 ? mostpopularArtistTerms : null;
     }
 
     public Float getDanceability()

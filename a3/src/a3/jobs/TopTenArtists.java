@@ -30,12 +30,9 @@ public class TopTenArtists
             {
                 Float t = d.getTempo();
                 String an = d.getArtistName();
-                if (t != null)
-                {
-                    tempo.set(t);
-                    artistName.set(an);
-                    context.write(tempo, artistName);
-                }
+                tempo.set(t);
+                artistName.set(an);
+                context.write(tempo, artistName);
             }
         }
     }

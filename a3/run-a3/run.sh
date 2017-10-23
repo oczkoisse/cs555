@@ -28,7 +28,7 @@ else
 
     job=${1##*.}
     scp ../../out/artifacts/a3_jar/a3.jar blue.cs.colostate.edu:/tmp/a3_bangar91/a3.jar
-    params="export HADOOP_CONF_DIR=\$HOME/local/hadoop/client_conf ; \$HADOOP_HOME/bin/hdfs dfs -rm -r -f /home/out/$job /home/inter; \$HADOOP_HOME/bin/hadoop jar /tmp/a3_bangar91/a3.jar "$1" "$target" /home/out/$job; \$HADOOP_HOME/bin/hdfs dfs -cat /home/out/$job/part-r-00000; bash"
+    params="export HADOOP_CONF_DIR=\$HOME/local/hadoop/client_conf ; \$HADOOP_HOME/bin/hdfs dfs -rm -r -f /home/out/$job /home/inter; \$HADOOP_HOME/bin/hadoop jar /tmp/a3_bangar91/a3.jar "$1" "$target" /home/out/$job; \$HADOOP_HOME/bin/hdfs dfs -cat /home/out/$job/part-r-00000 | less; bash"
     echo "$params"
     gnome-terminal --window -- ssh -t blue.cs.colostate.edu "$params"
 fi

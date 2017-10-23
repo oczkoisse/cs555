@@ -11,7 +11,6 @@ def get_results_reader(file_path):
 def get_counts():
     counts = {}
     reader = get_results_reader('analysis_results.tsv')
-    total_g_counts = 0
     for d, g, c in reader:
         if d not in counts:
             counts[d] = {}
@@ -27,16 +26,18 @@ if __name__ == '__main__':
 
     x = sorted(counts.keys())
     ys = []
-    genres = sys.argv[1].split(';')
-    genres = [ g.strip() for g in genres ]
+    genres = ['rock', 'blues', 'jazz', 'hip hop', 'electronic']
     for genre in genres:
         ys += [[counts[_x][genre] if genre in counts[_x] else 0.0 for _x in x]]
 
-    print ys
     axes = plt.gca()
     axes.set_ylim([0.0, 1.0])
-    plt.xticks(range(len(x)), x, rotation=45)
+    plt.xticks(range(1, len(x)+1), x, rotation=45)
     plt.gca().get_xaxis().tick_bottom()
+
+    for i in range(len(ys)):
+        plt.plot(range(1, len(x) + 1), ys[i], label=genres[i])
+    plt.legend()
     plt.show()
 
 

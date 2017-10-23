@@ -37,11 +37,14 @@ public class TopTenGenres
             Data d = new Data(content.toString());
             if (d.isValid())
             {
-                List<String> genres = d.getArtistTerms();
-                for(String g: genres)
+                List<String> genres = d.getPopularArtistTerms();
+                if (genres != null)
                 {
-                    genre.set(g);
-                    context.write(genre, ONE);
+                    for(String g: genres)
+                    {
+                        genre.set(g);
+                        context.write(genre, ONE);
+                    }
                 }
             }
         }
