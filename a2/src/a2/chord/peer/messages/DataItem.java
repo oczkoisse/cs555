@@ -67,7 +67,6 @@ public class DataItem implements Message<ChordMessageType>
         }
 
         this.id = new ID(new BigInteger(hash.getValue()), hash.size());
-        hash.reset();
     }
 
     public DataItem(String pathToFile, ID id)
@@ -135,8 +134,6 @@ public class DataItem implements Message<ChordMessageType>
             }
 
             assert this.id.compareTo(new ID(new BigInteger(hash.getValue()), hash.size())) == 0;
-
-            hash.reset();
         }
     }
 

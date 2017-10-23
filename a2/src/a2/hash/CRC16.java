@@ -23,7 +23,9 @@ public final class CRC16 implements Hash
     @Override
     public byte[] getValue()
     {
-        return ByteConverter.convert((short) crc16.value);
+        byte[] hashed = ByteConverter.convert((short) crc16.value);
+        reset();
+        return hashed;
     }
 
     @Override

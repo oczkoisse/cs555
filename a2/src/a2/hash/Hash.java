@@ -18,17 +18,12 @@ public interface Hash
 
     default byte[] randomHash()
     {
+        reset();
+
         Date d = new Date();
         long timestamp = d.getTime();
-
-        reset();
-
         byte[] bytes = ByteConverter.convert(timestamp);
         update(bytes, 0, bytes.length);
-        byte[] hashed =  getValue();
-
-        reset();
-
-        return hashed;
+        return getValue();
     }
 }

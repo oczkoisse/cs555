@@ -3,7 +3,7 @@ package a2.util;
 import java.nio.ByteBuffer;
 
 /**
- * Utility class to convert primitive integer types to a byte array
+ * Utility class to convert primitive integer types to a byte array. Thread safe
  */
 public class ByteConverter
 {
@@ -18,11 +18,13 @@ public class ByteConverter
      */
     public static byte[] convert(long val)
     {
-        converter.clear();
-        converter.putLong(val);
-        converter.position(0);
         byte[] out = new byte[Long.BYTES];
-        converter.get(out);
+        synchronized(converter) {
+            converter.clear();
+            converter.putLong(val);
+            converter.position(0);
+            converter.get(out);
+        }
         return out;
     }
 
@@ -33,11 +35,13 @@ public class ByteConverter
      */
     public static byte[] convert(int val)
     {
-        converter.clear();
-        converter.putInt(val);
-        converter.position(0);
         byte[] out = new byte[Integer.BYTES];
-        converter.get(out);
+        synchronized(converter) {
+            converter.clear();
+            converter.putInt(val);
+            converter.position(0);
+            converter.get(out);
+        }
         return out;
     }
 
@@ -48,11 +52,13 @@ public class ByteConverter
      */
     public static byte[] convert(short val)
     {
-        converter.clear();
-        converter.putShort(val);
-        converter.position(0);
         byte[] out = new byte[Short.BYTES];
-        converter.get(out);
+        synchronized (converter) {
+            converter.clear();
+            converter.putShort(val);
+            converter.position(0);
+            converter.get(out);
+        }
         return out;
     }
 }
