@@ -7,10 +7,12 @@ import a2.hash.SHA1;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 public class Chunker implements Iterable<Chunk>, AutoCloseable
 {
@@ -20,6 +22,8 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
     private ChunkIterator it;
     private boolean closed;
 
+    private final Hash hasher;
+
     public Chunker(Path fileName, Size chunkSize, Size sliceSize, HashName hashName) throws IOException
     {
         if (chunkSize.getByteCount() % sliceSize.getByteCount() != 0)
@@ -27,6 +31,20 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
 
         this.chunkSize = chunkSize;
         this.sliceSize = sliceSize;
+
+        switch(hashName)
+        {
+            case SHA1:
+                hasher = new SHA1();
+                break;
+            case CRC16:
+                hasher = new CRC16();
+                break;
+            default:
+                // Will never happen
+                hasher = null;
+                break;
+        }
 
         this.it = new ChunkIterator(fileName);
         this.closed = false;
@@ -50,40 +68,64 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
     {
         private final Path fileName;
         private final BufferedInputStream file;
-
         private final byte[] sliceBuffer;
         private int seq;
 
-        public ChunkIterator(Path fileName) throws IOException
+        public ChunkIterator(Path filePath) throws IOException
         {
-            this.fileName = fileName;
-
-            this.file = new BufferedInputStream(Files.newInputStream(fileName));
+            this.fileName = filePath.getFileName();
+            this.file = new BufferedInputStream(Files.newInputStream(filePath));
             this.sliceBuffer = new byte[sliceSize.getByteCount()];
-
             this.seq = 0;
         }
 
         @Override
         public boolean hasNext()
         {
-            return true;
+            boolean _hasNext = true;
+            this.file.mark(1);
+            try
+            {
+                if (this.file.read() == -1)
+                    _hasNext = false;
+            }
+            catch (IOException ex)
+            {
+                // Read failed
+                _hasNext = false;
+            }
+            finally
+            {
+                try { this.file.reset(); } catch (IOException ex) { /* Should never happen */ }
+            }
+            return _hasNext;
         }
 
         @Override
         public Chunk next()
         {
-            int bytesRead;
-            try
-            {
-                bytesRead = this.file.read(sliceBuffer);
-            }
-            catch(IOException ex)
-            {
+            int slicesPerChunk = chunkSize.getByteCount()/sliceSize.getByteCount();
 
+            List<Slice> sliceList = new ArrayList<>();
+
+            for(int i=0; i < slicesPerChunk && hasNext(); i++)
+            {
+                try
+                {
+                    int bytesRead = this.file.read(sliceBuffer);
+                    sliceList.add(new Slice(sliceBuffer, sliceSize, hasher));
+                }
+                catch(IOException ex)
+                {
+                    /* Should not happen */
+                }
             }
+
+            if (sliceList.size() == 0)
+                throw new NoSuchElementException("next() called on an ended stream");
+
             Metadata m = new Metadata(fileName.toString(), seq, 0);
-            return new Chunk(m);
+            return new Chunk(m, sliceList);
         }
 
         private void close() throws IOException

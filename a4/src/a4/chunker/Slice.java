@@ -31,8 +31,8 @@ class Slice implements Externalizable
 
         hasher.reset();
         hasher.update(sliceData, 0, sliceData.length);
-        this.hashValue = hasher.getValue();
 
+        this.hashValue = hasher.getValue();
         this.sliceSize = sliceSize;
     }
 
