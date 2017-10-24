@@ -20,8 +20,6 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
     private ChunkIterator it;
     private boolean closed;
 
-    private Hash hasher;
-
     public Chunker(Path fileName, Size chunkSize, Size sliceSize, HashName hashName) throws IOException
     {
         if (chunkSize.getByteCount() % sliceSize.getByteCount() != 0)
@@ -32,16 +30,6 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
 
         this.it = new ChunkIterator(fileName);
         this.closed = false;
-
-        switch(hashName)
-        {
-            case CRC16:
-                this.hasher = new CRC16();
-                break;
-            case SHA1:
-                this.hasher = new SHA1();
-                break;
-        }
     }
 
     @Override
@@ -88,7 +76,7 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
             int bytesRead;
             try
             {
-                bytesRead = this.file.read(buffer);
+                bytesRead = this.file.read(sliceBuffer);
             }
             catch(IOException ex)
             {

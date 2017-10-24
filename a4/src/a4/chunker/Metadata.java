@@ -24,7 +24,10 @@ class Metadata
 
     void updateTimestamp()
     {
-        this.timestamp = calendar.getTime();
+        synchronized (calendar)
+        {
+            this.timestamp = calendar.getTime();
+        }
     }
 
     void incrementVersion()
