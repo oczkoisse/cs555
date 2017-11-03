@@ -1,18 +1,10 @@
 package a4.chunker;
 
-import a2.hash.CRC16;
-import a2.hash.Hash;
-import a2.hash.HashName;
-import a2.hash.SHA1;
-
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.NoSuchElementException;
+import java.util.*;
 
 public class Chunker implements Iterable<Chunk>, AutoCloseable
 {
@@ -22,29 +14,13 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
     private ChunkIterator it;
     private boolean closed;
 
-    private final Hash hasher;
-
-    public Chunker(Path fileName, Size chunkSize, Size sliceSize, HashName hashName) throws IOException
+    public Chunker(Path fileName, Size chunkSize, Size sliceSize) throws IOException
     {
         if (chunkSize.getByteCount() % sliceSize.getByteCount() != 0)
             throw new IllegalArgumentException(String.format("Chunk size %s is not a multiple of slice size %s", chunkSize, sliceSize));
 
         this.chunkSize = chunkSize;
         this.sliceSize = sliceSize;
-
-        switch(hashName)
-        {
-            case SHA1:
-                hasher = new SHA1();
-                break;
-            case CRC16:
-                hasher = new CRC16();
-                break;
-            default:
-                // Will never happen
-                hasher = null;
-                break;
-        }
 
         this.it = new ChunkIterator(fileName);
         this.closed = false;
@@ -113,7 +89,10 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
                 try
                 {
                     int bytesRead = this.file.read(sliceBuffer);
-                    sliceList.add(new Slice(sliceBuffer, sliceSize, hasher));
+                    byte[] sliceData = bytesRead < sliceSize.getByteCount() ?
+                            Arrays.copyOfRange(sliceBuffer, 0, bytesRead) : sliceBuffer;
+
+                    sliceList.add(new Slice(sliceData, sliceSize));
                 }
                 catch(IOException ex)
                 {
@@ -124,7 +103,7 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
             if (sliceList.size() == 0)
                 throw new NoSuchElementException("next() called on an ended stream");
 
-            Metadata m = new Metadata(fileName.toString(), seq, 0);
+            Metadata m = new Metadata(fileName.toString(), seq++, 0);
             return new Chunk(m, sliceList);
         }
 
