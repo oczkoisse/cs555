@@ -19,15 +19,5 @@
         <jarDirectory url="file://$MODULE_DIR$/lib" recursive="false" />
       </library>
     </orderEntry>
-    <orderEntry type="module-library">
-      <library>
-        <CLASSES>
-          <root url="jar://$MODULE_DIR$/../a1/lib/junit-jupiter-api-5.0.0-M6.jar!/" />
-          <root url="jar://$MODULE_DIR$/../a1/lib/opentest4j-1.0.0-M3.jar!/" />
-        </CLASSES>
-        <JAVADOC />
-        <SOURCES />
-      </library>
-    </orderEntry>
   </component>
 </module>

@@ -29,15 +29,50 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
         this.closed = false;
     }
 
-    public static void combineSlicesToFile(Metadata metadata, List<Slice> slices, Path outDir) throws IOException
+    public static void combineChunksToFile(List<Chunk> chunks, Path outDir) throws IOException
     {
-        Path outFile = Paths.get(outDir.toString(), metadata.getFileName().toString());
+        if(chunks == null)
+            throw new NullPointerException("Chunk list is null");
+        else if (chunks.size() == 0)
+            throw new IllegalArgumentException("Chunk list has size 0");
+        else if (chunks.contains(null))
+            throw new NullPointerException("Chunk list has null elements");
+        else if (outDir == null)
+            throw new NullPointerException("Path is null");
 
+        // Sort chunks by sequence number
+        chunks.sort((Chunk c1, Chunk c2) -> Long.compare(c1.getMetadata().getSequenceNum(), c2.getMetadata().getSequenceNum()));
+
+        Path outFile = Paths.get(outDir.toString(), chunks.get(0).getMetadata().getFileName().toString());
+
+        boolean success = true;
         try(FileOutputStream fout = new FileOutputStream(outFile.toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout))
         {
-            for(Slice s: slices)
-                bout.write(s.getSliceData());
+            long expectedSeqNum = 0;
+            for(Chunk c: chunks)
+            {
+                long readSequenceNum = c.getMetadata().getSequenceNum();
+                if(readSequenceNum == expectedSeqNum)
+                    expectedSeqNum++;
+                else
+                {
+                    success = false;
+                    throw new IllegalArgumentException(String.format("Mismatch in chunk sequence number: got %d, expected %d", readSequenceNum, expectedSeqNum));
+                }
+                for(Slice s: c)
+                {
+                    byte[] sliceData = s.getSliceData();
+                    bout.write(sliceData, 0, sliceData.length);
+                }
+            }
+        }
+        finally
+        {
+            if(!success && Files.exists(outFile))
+            {
+                Files.delete(outFile);
+            }
         }
     }
 

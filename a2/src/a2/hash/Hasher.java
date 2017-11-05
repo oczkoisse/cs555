@@ -26,4 +26,17 @@ public interface Hasher
         update(bytes, 0, bytes.length);
         return getValue();
     }
+
+    static Hasher getHasherByName(Hash.Name name)
+    {
+        switch(name)
+        {
+            case SHA1:
+                return new SHA1();
+            case CRC16:
+                return new CRC16();
+            default:
+                return null;
+        }
+    }
 }

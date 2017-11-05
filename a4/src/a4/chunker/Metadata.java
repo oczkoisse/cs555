@@ -1,16 +1,20 @@
 package a4.chunker;
 
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Calendar;
 import java.util.Date;
 
-class Metadata
+class Metadata implements Externalizable
 {
     private static final Calendar calendar = Calendar.getInstance();
-    private final Path fileName;
-    private final long sequenceNum;
+    private Path fileName;
+    private long sequenceNum;
     private int version;
     private Date timestamp;
 
@@ -20,6 +24,14 @@ class Metadata
         this.sequenceNum = sequenceNum;
         this.version = version;
         updateTimestamp();
+    }
+
+    public Metadata()
+    {
+        this.fileName = null;
+        this.sequenceNum = 0;
+        this.version = 0;
+        this.timestamp = null;
     }
 
     void updateTimestamp()
@@ -56,4 +68,21 @@ class Metadata
     }
 
 
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException
+    {
+        out.writeUTF(fileName.toString());
+        out.writeLong(sequenceNum);
+        out.writeInt(version);
+        out.writeObject(timestamp);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
+    {
+        this.fileName = Paths.get(in.readUTF());
+        this.sequenceNum = in.readLong();
+        this.version = in.readInt();
+        this.timestamp = (Date) in.readObject();
+    }
 }

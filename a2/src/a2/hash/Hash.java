@@ -11,7 +11,7 @@ public class Hash implements Externalizable {
 
     private byte[] value;
 
-    public static enum Name
+    public enum Name
     {
         SHA1, CRC16;
     }
@@ -38,6 +38,11 @@ public class Hash implements Externalizable {
         if (value.length == 0)
             throw new IllegalArgumentException("Hash value cannot be 0 bytes");
         this.value = Arrays.copyOf(value, value.length);
+    }
+
+    public Hash()
+    {
+        this.value = null;
     }
 
     public int size()

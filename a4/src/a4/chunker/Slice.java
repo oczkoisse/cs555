@@ -34,8 +34,8 @@ class Slice implements Externalizable
     public void writeExternal(ObjectOutput out) throws IOException
     {
         out.writeObject(sliceSize);
-        out.write(sliceData.length);
-        out.write(sliceData);
+        out.writeInt(sliceData.length);
+        out.write(sliceData, 0, sliceData.length);
     }
 
     @Override
@@ -43,7 +43,10 @@ class Slice implements Externalizable
     {
         this.sliceSize = (Size) in.readObject();
         this.sliceData = new byte[in.readInt()];
-        in.read(this.sliceData);
+        int bytesRead = 0;
+        while(sliceData.length - bytesRead > 0)
+            bytesRead += in.read(sliceData, bytesRead, sliceData.length - bytesRead);
+        assert bytesRead == sliceData.length;
     }
 
     public Size getSliceSize()

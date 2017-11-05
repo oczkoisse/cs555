@@ -7,12 +7,13 @@ import java.io.*;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
-class Chunk implements Externalizable
+class Chunk implements Externalizable, Iterable<Slice>
 {
     private static final Path saveDir = Paths.get(System.getProperty("java.io.tmpdir"));
-    private final Hasher hasher = new SHA1();
+    private final Hasher hasher = Hasher.getHasherByName(Hash.Name.SHA1);
     private Metadata metadata;
     private List<Slice> sliceList;
 
@@ -36,6 +37,8 @@ class Chunk implements Externalizable
     public Chunk(Path pathToChunkFile) throws IOException, ClassNotFoundException, IntegrityCheckFailedException
     {
         List<Integer> failedSlices = new ArrayList<>();
+        StringBuilder exMessage = new StringBuilder();
+        exMessage.append(String.format("%n"));
 
         try(FileInputStream fin = new FileInputStream(pathToChunkFile.toString());
             BufferedInputStream bin = new BufferedInputStream(fin);
@@ -44,22 +47,30 @@ class Chunk implements Externalizable
             int sliceCount = oin.readInt();
             this.sliceList = new ArrayList<>();
             for (int i = 0; i < sliceCount; i++) {
-                Hash h = (Hash) oin.readObject();
+                Hash expectedHash = (Hash) oin.readObject();
                 Slice s = (Slice) oin.readObject();
-                if (s.calculateHash(hasher).equals(h))
+
+                Hash calculatedHash = s.calculateHash(hasher);
+                if (expectedHash.equals(calculatedHash))
                     this.sliceList.add(s);
-                else
+                else {
+                    exMessage.append(String.format("Hash check failed for slice %d: expected %s, got %s.%n", i, expectedHash, calculatedHash));
                     failedSlices.add(i);
+                }
             }
         }
         if (failedSlices.size() > 0)
-            throw new IntegrityCheckFailedException("Chunk integrity failed for " + failedSlices.size() + " slices", failedSlices);
+        {
+            exMessage.append(String.format("Integrity check failed in %s for %d slices.%n", pathToChunkFile, failedSlices.size()));
+            throw new IntegrityCheckFailedException(exMessage.toString(), failedSlices);
+        }
     }
 
-    private Path getStoragePath()
+    public Path getStoragePath()
     {
-        String chunkName = String.join("_", "chunk", metadata.getFileName().getName(-1).toString(),
+        String chunkName = String.join("_", "chunk", metadata.getFileName().toString(),
                 Long.toString(metadata.getSequenceNum()));
+
         return Paths.get(saveDir.toString(), chunkName);
     }
 
@@ -89,7 +100,6 @@ class Chunk implements Externalizable
 
     public void writeToFile() throws IOException
     {
-        hasher.reset();
         try(FileOutputStream fout = new FileOutputStream(getStoragePath().toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout);
             ObjectOutputStream oout = new ObjectOutputStream(bout)) {
@@ -100,5 +110,16 @@ class Chunk implements Externalizable
                 oout.writeObject(s);
             }
         }
+    }
+
+    public Metadata getMetadata()
+    {
+        return this.metadata;
+    }
+
+    @Override
+    public Iterator<Slice> iterator()
+    {
+        return sliceList.iterator();
     }
 }

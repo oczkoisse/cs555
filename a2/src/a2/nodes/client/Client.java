@@ -168,7 +168,7 @@ public class Client extends Peer
         }
         else {
             LOGGER.log(Level.INFO, "ID clash with an existing node. Creating a new one.");
-            overrideID(new ID(new BigInteger(hasher.randomHash()), hasher.size()));
+            overrideID(new ID(hasher.randomHash().asBigInteger(), hasher.size()));
             register();
         }
     }
