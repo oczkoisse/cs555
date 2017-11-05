@@ -20,7 +20,7 @@ public class Client extends Peer
     private InetSocketAddress discoveryAddress;
     private Boolean registered;
 
-    private Hash hash = new CRC16();
+    private Hasher hasher = new CRC16();
 
     public Client(PeerInfo peerInfo, InetSocketAddress discoveryAddress, int hearbeatInterval)
     {
@@ -168,7 +168,7 @@ public class Client extends Peer
         }
         else {
             LOGGER.log(Level.INFO, "ID clash with an existing node. Creating a new one.");
-            overrideID(new ID(new BigInteger(hash.randomHash()), hash.size()));
+            overrideID(new ID(new BigInteger(hasher.randomHash()), hasher.size()));
             register();
         }
     }

@@ -2,7 +2,7 @@ package a2.chord.peer.messages;
 
 import a2.chord.peer.ID;
 import a2.hash.CRC16;
-import a2.hash.Hash;
+import a2.hash.Hasher;
 import a2.transport.Message;
 
 import java.io.*;
@@ -11,7 +11,7 @@ import java.math.BigInteger;
 public class DataItem implements Message<ChordMessageType>
 {
     private static final File outDir = new File(System.getProperty("java.io.tmpdir"));
-    private Hash hash;
+    private Hasher hasher;
 
     private File pathToFile;
     private ID id;
@@ -44,11 +44,11 @@ public class DataItem implements Message<ChordMessageType>
     public DataItem(String pathToFile) throws IOException
     {
         this.pathToFile = parseAsPath(pathToFile);
-        this.hash = new CRC16();
+        this.hasher = new CRC16();
         this.id = null;
         this.dummy = false;
 
-        hash.reset();
+        hasher.reset();
 
         byte[] buffer = new byte[1024];
 
@@ -58,7 +58,7 @@ public class DataItem implements Message<ChordMessageType>
             int bytesRead;
             while ((bytesRead = f.read(buffer)) != -1)
             {
-                hash.update(buffer, 0, bytesRead);
+                hasher.update(buffer, 0, bytesRead);
             }
         }
         catch(FileNotFoundException ex)
@@ -66,13 +66,13 @@ public class DataItem implements Message<ChordMessageType>
             // Can ignore, already handled by parseAsPath()
         }
 
-        this.id = new ID(new BigInteger(hash.getValue()), hash.size());
+        this.id = new ID(hasher.getValue().asBigInteger(), hasher.size());
     }
 
     public DataItem(String pathToFile, ID id)
     {
         this.pathToFile = new File(pathToFile);
-        this.hash = new CRC16();
+        this.hasher = new CRC16();
         this.id = id;
         this.dummy = true;
     }
@@ -80,7 +80,7 @@ public class DataItem implements Message<ChordMessageType>
     public DataItem()
     {
         this.pathToFile = null;
-        this.hash = new CRC16();
+        this.hasher = new CRC16();
         this.id = null;
         this.dummy = true;
     }
@@ -122,18 +122,18 @@ public class DataItem implements Message<ChordMessageType>
         if (!dummy) {
             byte[] buffer = new byte[1024];
 
-            hash.reset();
+            hasher.reset();
 
             try (FileOutputStream f = new FileOutputStream(pathToFile);
                  BufferedOutputStream bf = new BufferedOutputStream(f)) {
                 int bytesRead;
                 while ((bytesRead = in.read(buffer)) != -1) {
                     bf.write(buffer, 0, bytesRead);
-                    hash.update(buffer, 0, bytesRead);
+                    hasher.update(buffer, 0, bytesRead);
                 }
             }
 
-            assert this.id.compareTo(new ID(new BigInteger(hash.getValue()), hash.size())) == 0;
+            assert this.id.compareTo(new ID(hasher.getValue().asBigInteger(), hasher.size())) == 0;
         }
     }
 

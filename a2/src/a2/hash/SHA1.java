@@ -5,7 +5,7 @@ import a2.util.ByteConverter;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
-public class SHA1 implements Hash
+public class SHA1 implements Hasher
 {
     private MessageDigest hasher;
 
@@ -37,9 +37,9 @@ public class SHA1 implements Hash
     }
 
     @Override
-    public byte[] getValue()
+    public Hash getValue()
     {
-        return this.hasher.digest();
+        return new Hash(this.hasher.digest());
     }
 
     @Override

@@ -14,10 +14,10 @@ class Metadata
     private int version;
     private Date timestamp;
 
-    public Metadata(String file, long sequenceNumber, int version) throws InvalidPathException
+    public Metadata(String file, long sequenceNum, int version) throws InvalidPathException
     {
-        this.fileName = Paths.get(file);
-        this.sequenceNum = sequenceNumber;
+        this.fileName = Paths.get(file).getFileName();
+        this.sequenceNum = sequenceNum;
         this.version = version;
         updateTimestamp();
     }
@@ -54,4 +54,6 @@ class Metadata
     {
         return timestamp.getTime();
     }
+
+
 }

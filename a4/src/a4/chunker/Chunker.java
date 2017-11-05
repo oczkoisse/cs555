@@ -1,9 +1,12 @@
 package a4.chunker;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 
 public class Chunker implements Iterable<Chunk>, AutoCloseable
@@ -24,6 +27,18 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
 
         this.it = new ChunkIterator(fileName);
         this.closed = false;
+    }
+
+    public static void combineSlicesToFile(Metadata metadata, List<Slice> slices, Path outDir) throws IOException
+    {
+        Path outFile = Paths.get(outDir.toString(), metadata.getFileName().toString());
+
+        try(FileOutputStream fout = new FileOutputStream(outFile.toString());
+            BufferedOutputStream bout = new BufferedOutputStream(fout))
+        {
+            for(Slice s: slices)
+                bout.write(s.getSliceData());
+        }
     }
 
     @Override

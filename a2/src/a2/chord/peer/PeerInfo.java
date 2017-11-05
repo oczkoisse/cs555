@@ -1,6 +1,6 @@
 package a2.chord.peer;
 
-import a2.hash.Hash;
+import a2.hash.Hasher;
 
 import java.io.Externalizable;
 import java.io.IOException;
@@ -91,15 +91,15 @@ public class PeerInfo implements Externalizable
         this.name = in.readUTF();
     }
 
-    public static PeerInfo generatePeerInfo(Hash hash, int listeningPort, String name) throws UnknownHostException
+    public static PeerInfo generatePeerInfo(Hasher hasher, int listeningPort, String name) throws UnknownHostException
     {
-        ID id = new ID(new BigInteger(hash.randomHash()), hash.size());
+        ID id = new ID(hasher.randomHash().asBigInteger(), hasher.size());
         return new PeerInfo(id, new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort), name);
     }
 
-    public static PeerInfo generatePeerInfo(Hash hash, int listeningPort) throws UnknownHostException
+    public static PeerInfo generatePeerInfo(Hasher hasher, int listeningPort) throws UnknownHostException
     {
-        ID id = new ID(new BigInteger(hash.randomHash()), hash.size());
+        ID id = new ID(hasher.randomHash().asBigInteger(), hasher.size());
         return new PeerInfo(id, new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort));
     }
 

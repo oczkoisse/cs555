@@ -2,7 +2,7 @@ package a2.hash;
 
 import a2.util.ByteConverter;
 
-public final class CRC16 implements Hash
+public final class CRC16 implements Hasher
 {
     private SunCRC16 crc16 = new SunCRC16();
 
@@ -21,11 +21,11 @@ public final class CRC16 implements Hash
     }
 
     @Override
-    public byte[] getValue()
+    public Hash getValue()
     {
         byte[] hashed = ByteConverter.convert((short) crc16.value);
         reset();
-        return hashed;
+        return new Hash(hashed);
     }
 
     @Override

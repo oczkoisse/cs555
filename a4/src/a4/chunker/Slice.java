@@ -1,11 +1,9 @@
 package a4.chunker;
 
 import a2.hash.Hash;
+import a2.hash.Hasher;
 
-import java.io.Externalizable;
-import java.io.IOException;
-import java.io.ObjectInput;
-import java.io.ObjectOutput;
+import java.io.*;
 import java.util.Arrays;
 
 class Slice implements Externalizable
@@ -58,13 +56,18 @@ class Slice implements Externalizable
         return sliceData.length;
     }
 
-    public byte[] calculateHash(Hash hasher)
+    public Hash calculateHash(Hasher hasher)
     {
         if (hasher == null)
-            throw new NullPointerException("null Hash passed");
+            throw new NullPointerException("null Hasher passed");
 
         hasher.reset();
         hasher.update(sliceData, 0, sliceData.length);
         return hasher.getValue();
+    }
+
+    byte[] getSliceData()
+    {
+        return sliceData;
     }
 }

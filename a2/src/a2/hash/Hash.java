@@ -1,29 +1,74 @@
 package a2.hash;
 
-import java.util.Date;
-import a2.util.ByteConverter;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
+import java.math.BigInteger;
+import java.util.Arrays;
 
-public interface Hash
-{
-    void update(int b);
-    void update(byte[] data, int offset, int len);
-    void reset();
-    byte[] getValue();
-    int size();
+public class Hash implements Externalizable {
 
-    default int sizeInBits()
+    private byte[] value;
+
+    public static enum Name
     {
-        return size() * Byte.SIZE;
+        SHA1, CRC16;
     }
 
-    default byte[] randomHash()
-    {
-        reset();
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-        Date d = new Date();
-        long timestamp = d.getTime();
-        byte[] bytes = ByteConverter.convert(timestamp);
-        update(bytes, 0, bytes.length);
-        return getValue();
+        Hash hash = (Hash) o;
+
+        return Arrays.equals(value, hash.value);
+    }
+
+    @Override
+    public int hashCode() {
+        return Arrays.hashCode(value);
+    }
+
+    public Hash(byte[] value)
+    {
+        if (value == null)
+            throw new NullPointerException("null value passed to Hash");
+        if (value.length == 0)
+            throw new IllegalArgumentException("Hash value cannot be 0 bytes");
+        this.value = Arrays.copyOf(value, value.length);
+    }
+
+    public int size()
+    {
+        return value.length;
+    }
+
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeInt(this.value.length);
+        out.write(this.value);
+    }
+
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        int hashLength = in.readInt();
+        this.value = new byte[hashLength];
+        in.read(this.value);
+    }
+
+    public BigInteger asBigInteger()
+    {
+        return new BigInteger(value);
+    }
+
+    @Override
+    public String toString()
+    {
+        StringBuilder sb = new StringBuilder();
+        for(byte b: value)
+            sb.append(String.format("%02x", b));
+        return sb.toString();
     }
 }
