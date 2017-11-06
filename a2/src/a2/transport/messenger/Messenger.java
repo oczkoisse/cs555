@@ -2,7 +2,7 @@ package a2.transport.messenger;
 
 import a2.transport.*;
 
-import java.io.IOException;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.concurrent.*;
@@ -145,6 +145,43 @@ public class Messenger
             this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
         else
             LOGGER.log(Level.WARNING, "Ignored a request to send a null or NULL_PEER message");
+    }
+
+    public static Message ask(Message msg, InetSocketAddress destination) throws IOException
+    {
+        if (msg != null)
+        {
+            try(Socket sock = new Socket(destination.getAddress(), destination.getPort());
+                OutputStream out = sock.getOutputStream();
+                InputStream in = sock.getInputStream();
+                ObjectOutputStream oout = new ObjectOutputStream(out);
+                ObjectInputStream oin = new ObjectInputStream(in))
+            {
+                oout.writeObject(msg);
+                return (Message) oin.readObject();
+            }
+            catch(ClassNotFoundException ex)
+            {
+                LOGGER.log(Level.SEVERE, ex.getMessage());
+            }
+        }
+        else
+            throw new NullPointerException("Asking message cannot be null");
+
+        return null;
+    }
+
+    public static void tell(Socket sock, Message msg) throws IOException
+    {
+        if (msg == null)
+            throw new NullPointerException("Response message cannot be null");
+
+        try(Socket s = sock;
+            OutputStream out = s.getOutputStream();
+            ObjectOutputStream oout = new ObjectOutputStream(out))
+        {
+            oout.writeObject(msg);
+        }
     }
 
     /**

@@ -10,7 +10,7 @@ import java.nio.file.Paths;
 import java.util.Calendar;
 import java.util.Date;
 
-class Metadata implements Externalizable
+public class Metadata implements Externalizable
 {
     private static final Path saveDir = Paths.get(System.getProperty("java.io.tmpdir"));
 
