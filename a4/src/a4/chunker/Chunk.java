@@ -1,18 +1,15 @@
 package a4.chunker;
 import a2.hash.Hash;
 import a2.hash.Hasher;
-import a2.hash.SHA1;
 
 import java.io.*;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
 class Chunk implements Externalizable, Iterable<Slice>
 {
-    private static final Path saveDir = Paths.get(System.getProperty("java.io.tmpdir"));
     private final Hasher hasher = Hasher.getHasherByName(Hash.Name.SHA1);
     private Metadata metadata;
     private List<Slice> sliceList;
@@ -34,44 +31,54 @@ class Chunk implements Externalizable, Iterable<Slice>
      * For instantiating Chunk object from a chunk file stored with {@link #writeToFile()}
      * @param pathToChunkFile
      */
-    public Chunk(Path pathToChunkFile) throws IOException, ClassNotFoundException, IntegrityCheckFailedException
+    public Chunk(Path pathToChunkFile) throws IOException, IntegrityCheckFailedException
     {
         List<Integer> failedSlices = new ArrayList<>();
         StringBuilder exMessage = new StringBuilder();
         exMessage.append(String.format("%n"));
 
+        int curSlice = 0, sliceCount = 0;
+
         try(FileInputStream fin = new FileInputStream(pathToChunkFile.toString());
             BufferedInputStream bin = new BufferedInputStream(fin);
             ObjectInputStream oin = new ObjectInputStream(bin)) {
+
             this.metadata = (Metadata) oin.readObject();
-            int sliceCount = oin.readInt();
+            sliceCount = oin.readInt();
+
             this.sliceList = new ArrayList<>();
-            for (int i = 0; i < sliceCount; i++) {
+            for (; curSlice < sliceCount; curSlice++) {
                 Hash expectedHash = (Hash) oin.readObject();
                 Slice s = (Slice) oin.readObject();
 
                 Hash calculatedHash = s.calculateHash(hasher);
-                if (expectedHash.equals(calculatedHash))
-                    this.sliceList.add(s);
-                else {
-                    exMessage.append(String.format("Hash check failed for slice %d: expected %s, got %s.%n", i, expectedHash, calculatedHash));
-                    failedSlices.add(i);
+                if (!expectedHash.equals(calculatedHash))
+                {
+                    exMessage.append(String.format("Hash check failed for slice %d: expected %s, got %s.%n", curSlice, expectedHash, calculatedHash));
+                    failedSlices.add(curSlice);
                 }
+                else
+                    this.sliceList.add(s);
             }
         }
+        catch(StreamCorruptedException | ClassNotFoundException ex)
+        {
+            if (curSlice == 0 && sliceCount == 0)
+                throw new IOException("Metadata/slice count info is corrupted");
+
+            // Type error could occur while reading an object if metadata or any slice is corrupted
+            while(curSlice < sliceCount)
+            {
+                failedSlices.add(curSlice);
+                curSlice++;
+            }
+        }
+
         if (failedSlices.size() > 0)
         {
             exMessage.append(String.format("Integrity check failed in %s for %d slices.%n", pathToChunkFile, failedSlices.size()));
             throw new IntegrityCheckFailedException(exMessage.toString(), failedSlices);
         }
-    }
-
-    public Path getStoragePath()
-    {
-        String chunkName = String.join("_", "chunk", metadata.getFileName().toString(),
-                Long.toString(metadata.getSequenceNum()));
-
-        return Paths.get(saveDir.toString(), chunkName);
     }
 
     public Chunk()
@@ -100,7 +107,7 @@ class Chunk implements Externalizable, Iterable<Slice>
 
     public void writeToFile() throws IOException
     {
-        try(FileOutputStream fout = new FileOutputStream(getStoragePath().toString());
+        try(FileOutputStream fout = new FileOutputStream(this.metadata.getStoragePath().toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout);
             ObjectOutputStream oout = new ObjectOutputStream(bout)) {
             oout.writeObject(metadata);

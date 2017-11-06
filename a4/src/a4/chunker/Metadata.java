@@ -12,6 +12,8 @@ import java.util.Date;
 
 class Metadata implements Externalizable
 {
+    private static final Path saveDir = Paths.get(System.getProperty("java.io.tmpdir"));
+
     private static final Calendar calendar = Calendar.getInstance();
     private Path fileName;
     private long sequenceNum;
@@ -84,5 +86,13 @@ class Metadata implements Externalizable
         this.sequenceNum = in.readLong();
         this.version = in.readInt();
         this.timestamp = (Date) in.readObject();
+    }
+
+    public Path getStoragePath()
+    {
+        String chunkName = String.join("_", "chunk", getFileName().toString(),
+                Long.toString(getSequenceNum()));
+
+        return Paths.get(saveDir.toString(), chunkName);
     }
 }

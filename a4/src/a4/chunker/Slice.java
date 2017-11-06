@@ -11,7 +11,7 @@ class Slice implements Externalizable
     private Size sliceSize;
     private byte[] sliceData;
 
-    // Meant only for writing to DataOutput
+    // Meant only for writing to ObjectOutput
     public Slice()
     {
         this.sliceSize = null;
