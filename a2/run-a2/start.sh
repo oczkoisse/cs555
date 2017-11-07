@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-test_home=$HOME/Documents/Assignments/cs555/out/production/cs555
+test_home=$HOME/Documents/Assignments/cs555/out/production/a2
 
 gnome-terminal -x bash -c "ssh -t denver 'cd ${test_home}; java a2.nodes.discoverer.Discoverer 44000; bash;'" &
 sleep 3
