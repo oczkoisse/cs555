@@ -1,14 +1,16 @@
 package a4.nodes.server;
 
-import a2.transport.Message;
-import a2.transport.messenger.*;
+import a4.transport.Message;
+import a4.transport.messenger.*;
 import a4.chunker.Metadata;
-import a4.nodes.controller.Controller;
+import a4.nodes.controller.messages.CheckIfAlive;
 import a4.nodes.controller.messages.ControllerMessageType;
 import a4.nodes.server.messages.*;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -27,13 +29,18 @@ public class Server
     private static final AliveResponse aliveResponse = new AliveResponse();
 
     private final ScheduledExecutorService heart = Executors.newSingleThreadScheduledExecutor();
+    private final InetSocketAddress ownAddress;
     private final InetSocketAddress controllerAddress;
+
     private Messenger messenger;
     private int minorHearbeatsCount;
 
-    public Server(int listeningPort, String controllerHost, int controllerPort)
+    public Server(int listeningPort, String controllerHost, int controllerPort) throws UnknownHostException
     {
         this.messenger = new Messenger(listeningPort, 4);
+
+        this.ownAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort);
+
         this.controllerAddress = new InetSocketAddress(controllerHost, controllerPort);
         this.minorHearbeatsCount = 0;
     }
@@ -53,7 +60,7 @@ public class Server
     private Heartbeat prepareHeartbeatMessage(boolean majorHeartbeat)
     {
         List<Metadata> chunks = new ArrayList<>();
-        return majorHeartbeat ? new MajorHeartbeat(chunks) : new MinorHeartbeat(chunks, 0);
+        return majorHeartbeat ? new MajorHeartbeat(ownAddress, chunks) : new MinorHeartbeat(ownAddress, chunks, 0);
     }
 
     private void beat()
@@ -121,7 +128,7 @@ public class Server
     private void handleConnectionReceivedEvent(ConnectionReceived ev)
     {
         Socket sock = ev.getSocket();
-        LOGGER.log(Level.INFO, "Received a new connection request from " + sock.getInetAddress());
+        LOGGER.log(Level.FINE, "Received a new connection request from " + sock.getInetAddress());
         messenger.receive(sock);
     }
 
@@ -138,12 +145,15 @@ public class Server
         {
             this.messenger.send(prepareHeartbeatMessage(true), controllerAddress);
         }
-        else if (msg.getMessageType() instanceof ServerMessageType)
+        else if (msg.getMessageType() instanceof ControllerMessageType)
         {
-            switch ((ServerMessageType) msg.getMessageType())
+            switch ((ControllerMessageType) msg.getMessageType())
             {
                 case CHECK_IF_ALIVE:
                     handleCheckIfAliveMsg((CheckIfAlive) msg);
+                    break;
+                default:
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
             }
         }
@@ -161,6 +171,29 @@ public class Server
 
     public static void main(String[] args)
     {
+        Server s = null;
+        try
+        {
+            if (args.length == 3)
+            {
+                int ownPort = Integer.parseInt(args[0]);
+                String controllerHost = args[1];
+                int controllerPort = Integer.parseInt(args[2]);
+                s = new Server(ownPort, controllerHost, controllerPort);
+                s.run();
+            }
+            else
+                printUsage();
+        }
+        catch(NumberFormatException ex)
+        {
+            printUsage();
+        }
+        catch(UnknownHostException ex)
+        {
+            LOGGER.log(Level.INFO, "Cannot determine host name of the server");
+            System.exit(0);
+        }
 
     }
 }

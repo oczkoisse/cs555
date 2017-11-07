@@ -1,6 +1,6 @@
 package a4.chunker;
-import a2.hash.Hash;
-import a2.hash.Hasher;
+import a4.hash.Hash;
+import a4.hash.Hasher;
 
 import java.io.*;
 import java.nio.file.Path;

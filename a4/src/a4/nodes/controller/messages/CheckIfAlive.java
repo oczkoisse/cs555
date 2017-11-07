@@ -1,17 +1,17 @@
-package a4.nodes.server.messages;
+package a4.nodes.controller.messages;
 
-import a2.transport.Message;
+import a4.transport.Message;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class CheckIfAlive implements Message<ServerMessageType>
+public class CheckIfAlive implements Message<ControllerMessageType>
 {
     @Override
-    public ServerMessageType getMessageType()
+    public ControllerMessageType getMessageType()
     {
-        return ServerMessageType.CHECK_IF_ALIVE;
+        return ControllerMessageType.CHECK_IF_ALIVE;
     }
 
     @Override

@@ -3,5 +3,6 @@ package a4.nodes.controller.messages;
 public enum ControllerMessageType
 {
     WRITE_RESPONSE,
-    MAJOR_HEARTBEAT_REQUEST
+    MAJOR_HEARTBEAT_REQUEST,
+    CHECK_IF_ALIVE
 }

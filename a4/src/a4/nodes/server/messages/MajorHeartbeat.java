@@ -8,32 +8,19 @@ import java.util.List;
 
 public class MajorHeartbeat extends Heartbeat
 {
-    private InetSocketAddress listeningAddress;
-
     public MajorHeartbeat()
     {
         super();
-        listeningAddress = null;
     }
 
-    public MajorHeartbeat(List<Metadata> allChunks, InetSocketAddress listeningAddress)
+    public MajorHeartbeat(InetSocketAddress listeningAddress, List<Metadata> allChunks)
     {
-        super(allChunks, allChunks.size());
-
-        if (listeningAddress == null)
-            throw new NullPointerException("null listening address passed");
-
-        this.listeningAddress = listeningAddress;
+        super(listeningAddress, allChunks, allChunks.size());
     }
 
     @Override
     public ServerMessageType getMessageType()
     {
         return ServerMessageType.MAJOR_HEARTBEAT;
-    }
-
-    public InetSocketAddress getListeningAddress()
-    {
-        return listeningAddress;
     }
 }

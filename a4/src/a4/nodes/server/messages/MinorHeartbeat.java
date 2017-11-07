@@ -3,6 +3,7 @@ package a4.nodes.server.messages;
 
 import a4.chunker.Metadata;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 
 public class MinorHeartbeat extends Heartbeat
@@ -13,9 +14,9 @@ public class MinorHeartbeat extends Heartbeat
         super();
     }
 
-    public MinorHeartbeat(List<Metadata> newChunks, int totalChunks)
+    public MinorHeartbeat(InetSocketAddress listeningAddress, List<Metadata> newChunks, int totalChunks)
     {
-        super(newChunks, totalChunks);
+        super(listeningAddress, newChunks, totalChunks);
     }
 
     @Override

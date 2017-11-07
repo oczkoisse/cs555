@@ -1,7 +1,10 @@
 package a4.nodes.controller;
 
-import a2.transport.messenger.*;
-import a4.nodes.server.messages.CheckIfAlive;
+import a4.transport.Message;
+import a4.transport.messenger.*;
+import a4.chunker.Metadata;
+import a4.nodes.controller.messages.*;
+
 import a4.nodes.server.messages.MajorHeartbeat;
 import a4.nodes.server.messages.MinorHeartbeat;
 import a4.nodes.server.messages.ServerMessageType;
@@ -15,15 +18,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import static a4.nodes.server.messages.ServerMessageType.ALIVE_RESPONSE;
-import static a4.nodes.server.messages.ServerMessageType.CHECK_IF_ALIVE;
 
 public class Controller
 {
     private static final Logger LOGGER = Logger.getLogger(Controller.class.getName());
     private static final CheckIfAlive checkIfAlive = new CheckIfAlive();
+    private static final MajorHeartbeatRequest majorHeartbeatRequest = new MajorHeartbeatRequest();
+
     private static final int REPLICATION = 3;
-    private static final int heartbeatInterval = 10;
+    private static final int heartbeatInterval = 5;
 
     private final ScheduledExecutorService heart = Executors.newSingleThreadScheduledExecutor();
     private Messenger messenger;
@@ -59,6 +62,7 @@ public class Controller
 
         this.heart.scheduleWithFixedDelay(this::beat, 0, heartbeatInterval, TimeUnit.SECONDS);
 
+        // Run event loop
         while(true)
         {
             try {
@@ -85,9 +89,10 @@ public class Controller
         {
             case MESSAGE_SENT: {
                 MessageSent msev = (MessageSent) ev;
-                Enum msgType = msev.getMessage().getMessageType();
+                Message msg = msev.getMessage();
+                Enum msgType = msg.getMessageType();
 
-                if (msgType == CHECK_IF_ALIVE)
+                if (msgType == ControllerMessageType.CHECK_IF_ALIVE)
                 {
                     String dest = msev.getDestination().getHostName();
                     LOGGER.log(Level.INFO, "Looks like the chunk server at " + dest + " died" );
@@ -98,7 +103,6 @@ public class Controller
             default:
                 break;
         }
-
     }
 
     private void handleEvent(Event ev)
@@ -118,7 +122,13 @@ public class Controller
                 handleConnectionReceivedEvent((ConnectionReceived) ev);
                 break;
         }
+    }
 
+    private void handleConnectionReceivedEvent(ConnectionReceived ev)
+    {
+        Socket sock = ev.getSocket();
+        LOGGER.log(Level.FINE, "Received a new connection request from " + sock.getInetAddress());
+        messenger.receive(sock);
     }
 
     private void handleMessageSentEvent(MessageSent ev)
@@ -128,40 +138,90 @@ public class Controller
 
     private void handleMessageReceivedEvent(MessageReceived ev)
     {
-        if(ev.getMessage().getMessageType() instanceof ServerMessageType)
+        Message msg = ev.getMessage();
+        Enum msgType = msg.getMessageType();
+
+        if(msgType instanceof ServerMessageType)
         {
-            switch((ServerMessageType) ev.getMessage().getMessageType())
+            switch((ServerMessageType) msgType)
             {
                 case ALIVE_RESPONSE:
                     break;
                 case MAJOR_HEARTBEAT:
-                    handleMajorHeartbeatMsg((MajorHeartbeat) ev.getMessage());
+                    handleMajorHeartbeatMsg((MajorHeartbeat) msg);
                     break;
                 case MINOR_HEARTBEAT:
-                    // If not seen before
-                    // ask for major heartbeat
-                    // else deal with minor heartbeat
-                    handleMinorHeartbeatMsg((MinorHeartbeat) ev.getMessage());
+                    handleMinorHeartbeatMsg((MinorHeartbeat) msg);
+                    break;
+                default:
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
             }
         }
-
     }
 
     private void handleMinorHeartbeatMsg(MinorHeartbeat msg)
     {
-
+        InetSocketAddress listeningAddress = msg.getListeningAddress();
+        synchronized (nodeTable)
+        {
+            if (!nodeTable.hasNode(listeningAddress))
+                messenger.send(majorHeartbeatRequest, listeningAddress);
+            else
+            {
+                nodeTable.updateNode(listeningAddress, msg.getFreeSpace());
+                for(Metadata m: msg.getChunksInfo())
+                    nodeTable.addReplica(m.getFileName().toString(), m.getSequenceNum(), listeningAddress);
+            }
+        }
     }
 
     private void handleMajorHeartbeatMsg(MajorHeartbeat msg)
     {
+        InetSocketAddress listeningAddress = msg.getListeningAddress();
+        synchronized (nodeTable)
+        {
+            if (!nodeTable.hasNode(listeningAddress))
+            {
+                LOGGER.log(Level.INFO, "Detected a new chunk server at " + listeningAddress);
+                nodeTable.addNode(listeningAddress, msg.getFreeSpace());
+            }
 
+            for(Metadata m: msg.getChunksInfo())
+            {
+                String filename = m.getFileName().toString();
+                long seqNum = m.getSequenceNum();
+
+                if(nodeTable.addReplica(m.getFileName().toString(), m.getSequenceNum(), listeningAddress))
+                    LOGGER.log(Level.INFO, String.format("Detected a replica for chunk %d for file %s at %s", seqNum, filename, listeningAddress));
+            }
+        }
     }
 
-    private void handleConnectionReceivedEvent(ConnectionReceived ev)
+    public static void printUsage()
     {
-        Socket sock = ev.getSocket();
-        LOGGER.log(Level.INFO, "Received a new connection request from " + sock.getInetAddress());
-        messenger.receive(sock);
+        System.out.println("Usage: " + Controller.class.getCanonicalName() + " <ListeningPort>");
+    }
+
+
+    public static void main(String[] args)
+    {
+        Controller c = null;
+        try
+        {
+            System.out.println(args[0]);
+            if (args.length == 1)
+            {
+                int ownPort = Integer.parseInt(args[0]);
+                c = new Controller(ownPort);
+                c.run();
+            }
+            else
+                printUsage();
+        }
+        catch(NumberFormatException ex)
+        {
+            printUsage();
+        }
     }
 }

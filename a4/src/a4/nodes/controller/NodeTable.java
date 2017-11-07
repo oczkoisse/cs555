@@ -87,11 +87,13 @@ public class NodeTable
         }
     }
 
-    public void addReplica(String filename, long sequenceNum, InetSocketAddress listeningAddress)
+    public boolean addReplica(String filename, long sequenceNum, InetSocketAddress listeningAddress)
     {
         validateFileName(filename);
         validateSequenceNum(sequenceNum);
         validateAddress(listeningAddress);
+
+        boolean added = false;
 
         synchronized (chunkReplicas)
         {
@@ -99,11 +101,13 @@ public class NodeTable
 
             chunkReplicas.get(filename).putIfAbsent(sequenceNum, new HashSet<>());
 
-            if (!chunkReplicas.get(filename).get(sequenceNum).contains(listeningAddress))
+            // Don't add duplicate ones
+            if (!chunkReplicas.get(filename).get(sequenceNum).contains(listeningAddress)) {
                 chunkReplicas.get(filename).get(sequenceNum).add(listeningAddress);
-            else
-                throw new IllegalArgumentException("Attempt to add duplicate replica for same chunk");
+                added = true;
+            }
         }
+        return added;
     }
 
     public Set<InetSocketAddress> getAllReplicas(String filename, long sequenceNum)
@@ -120,7 +124,7 @@ public class NodeTable
         return null;
     }
 
-    public InetSocketAddress getReplica(String filename, long sequenceNum)
+    public InetSocketAddress getExistingReplica(String filename, long sequenceNum)
     {
         validateFileName(filename);
         validateSequenceNum(sequenceNum);
@@ -142,38 +146,44 @@ public class NodeTable
         return null;
     }
 
-    public Set<InetSocketAddress> getCandidateReplicas(int count)
+    public Set<InetSocketAddress> getCandidateReplicas(String filename, long sequenceNum)
     {
-        if (count <= 0)
-            throw new IllegalArgumentException("Requested replica count must be a positive integer");
-
-        Set<InetSocketAddress> candidates = new HashSet<>();
-
-        synchronized (nodes)
+        synchronized (chunkReplicas)
         {
-            Set<InetSocketAddress> nodesAddresses = nodes.keySet();
-
-            // If not enough nodes are up yet, return null
-            if (nodesAddresses.size() < count)
+            int replicaCount = getAllReplicas(filename, sequenceNum).size();
+            if (replicaCount >= replication)
                 return null;
-
-
-            while (candidates.size() < count)
+            else
             {
-                int n = random.nextInt(nodes.size());
-                int i = 0;
-                for(InetSocketAddress address: nodesAddresses)
+                Set<InetSocketAddress> candidates = new HashSet<>();
+                int count = replication - replicaCount;
+                synchronized (nodes)
                 {
-                    if (i == n)
+                    Set<InetSocketAddress> nodesAddresses = nodes.keySet();
+
+                    // If not enough nodes are up yet, return null
+                    if (nodesAddresses.size() < count)
+                        return null;
+
+
+                    while (candidates.size() < count)
                     {
-                        if(!candidates.contains(address))
-                            candidates.add(address);
-                        break;
+                        int n = random.nextInt(nodes.size());
+                        int i = 0;
+                        for(InetSocketAddress address: nodesAddresses)
+                        {
+                            if (i == n)
+                            {
+                                if(!candidates.contains(address))
+                                    candidates.add(address);
+                                break;
+                            }
+                            i++;
+                        }
                     }
-                    i++;
+                    return candidates;
                 }
             }
-            return candidates;
         }
     }
 

@@ -1,6 +1,6 @@
 package a4.nodes.server.messages;
 
-import a2.transport.Message;
+import a4.transport.Message;
 
 import java.io.IOException;
 import java.io.ObjectInput;

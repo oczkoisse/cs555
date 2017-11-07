@@ -1,11 +1,12 @@
 package a4.nodes.server.messages;
 
-import a2.transport.Message;
+import a4.transport.Message;
 import a4.chunker.Metadata;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -16,12 +17,22 @@ public abstract class Heartbeat implements Message<ServerMessageType>
 {
     private static final Path tempDir = Paths.get(System.getProperty("java.io.tmpdir"));
 
+    private InetSocketAddress listeningAddress;
     private List<Metadata> chunks;
     private long freeSpace;
     private int totalChunks;
 
-    public Heartbeat(List<Metadata> chunks, int totalChunks)
+    public Heartbeat(InetSocketAddress listeningAddress, List<Metadata> chunks, int totalChunks)
     {
+        if (listeningAddress == null)
+            throw new NullPointerException("Listening address is null");
+        if (chunks == null)
+            throw new NullPointerException("Chunks list is null");
+        if (totalChunks < 0)
+            throw new IllegalArgumentException("Total chunks must be non-negative");
+
+        this.listeningAddress = listeningAddress;
+
         this.chunks = chunks;
         this.totalChunks = totalChunks;
         this.freeSpace = checkFreeSpace();
@@ -29,6 +40,7 @@ public abstract class Heartbeat implements Message<ServerMessageType>
 
     public Heartbeat()
     {
+        this.listeningAddress = null;
         this.chunks = null;
         this.totalChunks = -1;
         this.freeSpace = -1;
@@ -42,6 +54,7 @@ public abstract class Heartbeat implements Message<ServerMessageType>
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
+        out.writeObject(listeningAddress);
         out.writeLong(freeSpace);
         out.writeInt(totalChunks);
         if(this.chunks != null)
@@ -57,6 +70,7 @@ public abstract class Heartbeat implements Message<ServerMessageType>
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
     {
+        this.listeningAddress = (InetSocketAddress) in.readObject();
         this.freeSpace = in.readLong();
         this.totalChunks = in.readInt();
 
@@ -83,5 +97,10 @@ public abstract class Heartbeat implements Message<ServerMessageType>
     public int getTotalChunks()
     {
         return totalChunks;
+    }
+
+    public InetSocketAddress getListeningAddress()
+    {
+        return listeningAddress;
     }
 }
