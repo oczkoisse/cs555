@@ -3,7 +3,7 @@
 test_home=$HOME/Documents/Assignments/cs555/out/production/a4
 
 gnome-terminal -x bash -c "ssh -t denver 'cd ${test_home}; java a4.nodes.controller.Controller 44000; bash;'" &
-sleep 10
+sleep 5
 
 params=""
 k=1

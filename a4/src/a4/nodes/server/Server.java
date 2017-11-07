@@ -167,7 +167,23 @@ public class Server
 
     public void handleFailedEvent(Event ev)
     {
+        switch (ev.getEventType())
+        {
+            case MESSAGE_SENT: {
+                MessageSent msev = (MessageSent) ev;
+                Message msg = msev.getMessage();
+                Enum msgType = msg.getMessageType();
 
+                if (msgType == ServerMessageType.MINOR_HEARTBEAT || msgType == ServerMessageType.MAJOR_HEARTBEAT)
+                {
+                    LOGGER.log(Level.INFO, "Looks like the controller at " + controllerAddress + " is dead");
+                }
+                break;
+            }
+            default:
+                LOGGER.log(Level.WARNING, "Failed event: " + ev.getEventType());
+                break;
+        }
     }
 
     public static void main(String[] args)
