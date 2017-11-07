@@ -81,6 +81,7 @@ public class Server
     public void run()
     {
         LOGGER.log(Level.INFO, "Starting up the Server node");
+
         listen();
 
         LOGGER.log(Level.INFO, "Initiating heartbeat");
@@ -171,21 +172,16 @@ public class Server
 
     public static void main(String[] args)
     {
-        Server s = null;
+
         try
         {
-            if (args.length == 3)
-            {
-                int ownPort = Integer.parseInt(args[0]);
-                String controllerHost = args[1];
-                int controllerPort = Integer.parseInt(args[2]);
-                s = new Server(ownPort, controllerHost, controllerPort);
-                s.run();
-            }
-            else
-                printUsage();
+            int ownPort = Integer.parseInt(args[0]);
+            String controllerHost = args[1];
+            int controllerPort = Integer.parseInt(args[2]);
+            Server s = new Server(ownPort, controllerHost, controllerPort);
+            s.run();
         }
-        catch(NumberFormatException ex)
+        catch(NumberFormatException | IndexOutOfBoundsException ex)
         {
             printUsage();
         }

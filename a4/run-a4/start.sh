@@ -3,7 +3,7 @@
 test_home=$HOME/Documents/Assignments/cs555/out/production/a4
 
 gnome-terminal -x bash -c "ssh -t denver 'cd ${test_home}; java a4.nodes.controller.Controller 44000; bash;'" &
-sleep 5
+sleep 10
 
 params=""
 k=1
@@ -17,3 +17,5 @@ done
 
 cmd="gnome-terminal ${params}"
 eval $cmd
+
+gnome-terminal -x bash -c "ssh -t annapolis 'cd ${test_home}; java a4.nodes.client.Client 45000 denver 44000; bash;'" &

@@ -1,6 +1,7 @@
 package a4.chunker;
 import a4.hash.Hash;
 import a4.hash.Hasher;
+import a4.nodes.client.messages.WriteRequest;
 
 import java.io.*;
 import java.nio.file.Path;
@@ -85,6 +86,11 @@ class Chunk implements Externalizable, Iterable<Slice>
     {
         this.metadata = null;
         this.sliceList = null;
+    }
+
+    public WriteRequest convertToWriteRequest()
+    {
+        return new WriteRequest(this.metadata.getFileName().toString(), this.metadata.getSequenceNum());
     }
 
     @Override

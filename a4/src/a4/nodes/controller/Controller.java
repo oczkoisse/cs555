@@ -206,20 +206,13 @@ public class Controller
 
     public static void main(String[] args)
     {
-        Controller c = null;
         try
         {
-            System.out.println(args[0]);
-            if (args.length == 1)
-            {
-                int ownPort = Integer.parseInt(args[0]);
-                c = new Controller(ownPort);
-                c.run();
-            }
-            else
-                printUsage();
+            int ownPort = Integer.parseInt(args[0]);
+            Controller c = new Controller(ownPort);
+            c.run();
         }
-        catch(NumberFormatException ex)
+        catch(NumberFormatException | IndexOutOfBoundsException ex)
         {
             printUsage();
         }
