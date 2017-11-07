@@ -8,8 +8,6 @@ import a4.nodes.server.messages.ServerMessageType;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -18,28 +16,30 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static a4.nodes.server.messages.ServerMessageType.ALIVE_RESPONSE;
+import static a4.nodes.server.messages.ServerMessageType.CHECK_IF_ALIVE;
 
 public class Controller
 {
     private static final Logger LOGGER = Logger.getLogger(Controller.class.getName());
     private static final CheckIfAlive checkIfAlive = new CheckIfAlive();
+    private static final int REPLICATION = 3;
     private static final int heartbeatInterval = 10;
 
     private final ScheduledExecutorService heart = Executors.newSingleThreadScheduledExecutor();
     private Messenger messenger;
-    private List<InetSocketAddress> knownServers;
+    private NodeTable nodeTable;
 
     public Controller(int listeningPort)
     {
         this.messenger = new Messenger(listeningPort, 4);
-        this.knownServers = new ArrayList<>();
+        this.nodeTable = new NodeTable(REPLICATION);
     }
 
     private void beat()
     {
         LOGGER.log(Level.FINE, "BEAT");
 
-        for(InetSocketAddress address: knownServers)
+        for(InetSocketAddress address: nodeTable.getAllNodes())
         {
             messenger.send(checkIfAlive, address);
         }
@@ -87,11 +87,11 @@ public class Controller
                 MessageSent msev = (MessageSent) ev;
                 Enum msgType = msev.getMessage().getMessageType();
 
-                if (msgType == ALIVE_RESPONSE)
+                if (msgType == CHECK_IF_ALIVE)
                 {
                     String dest = msev.getDestination().getHostName();
                     LOGGER.log(Level.INFO, "Looks like the chunk server at " + dest + " died" );
-
+                    nodeTable.removeNode(msev.getDestination());
                 }
                 break;
             }
@@ -164,7 +164,4 @@ public class Controller
         LOGGER.log(Level.INFO, "Received a new connection request from " + sock.getInetAddress());
         messenger.receive(sock);
     }
-
-    private class
-
 }
