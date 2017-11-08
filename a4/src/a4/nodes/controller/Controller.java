@@ -1,6 +1,7 @@
 package a4.nodes.controller;
 
 import a4.nodes.client.messages.ClientMessageType;
+import a4.nodes.client.messages.ReadRequest;
 import a4.nodes.client.messages.WriteRequest;
 import a4.transport.Message;
 import a4.transport.messenger.*;
@@ -168,19 +169,35 @@ public class Controller
             switch((ClientMessageType) msgType)
             {
                 case WRITE_REQUEST:
-                    WriteRequest writeRequest = (WriteRequest) msg;
-                    InetSocketAddress talkbackAddr = new InetSocketAddress(ev.getSource().getHostName(), writeRequest.getPort());
-                    Set<InetSocketAddress> candidates = nodeTable.getCandidates(writeRequest.getFilename(), writeRequest.getSeqNum());
-                    if (candidates != null && candidates.size() == REPLICATION)
-                        this.messenger.send(new WriteReply(new ArrayList<>(candidates)), talkbackAddr);
-                    else
-                        LOGGER.log(Level.INFO, "Ignoring write request");
+                    handleWriteRequestMsg((WriteRequest) msg, ev.getSource().getHostName());
+                    break;
+                case READ_REQUEST:
+                    handleReadRequestMsg((ReadRequest) msg, ev.getSource().getHostName());
                     break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
                     break;
             }
         }
+    }
+
+    private void handleReadRequestMsg(ReadRequest msg, String hostname) {
+        InetSocketAddress talkbackAddr = new InetSocketAddress(hostname, msg.getPort());
+        InetSocketAddress replica = nodeTable.getExistingReplica(msg.getFilename(), msg.getSeqNum());
+        if (replica != null)
+            messenger.send(new ReadReply(replica), talkbackAddr);
+        else
+            LOGGER.log(Level.INFO, "Ignoring read request");
+    }
+
+    private void handleWriteRequestMsg(WriteRequest msg, String hostname)
+    {
+        InetSocketAddress talkbackAddr = new InetSocketAddress(hostname, msg.getPort());
+        Set<InetSocketAddress> candidates = nodeTable.getCandidates(msg.getFilename(), msg.getSeqNum());
+        if (candidates != null && candidates.size() == REPLICATION)
+            messenger.send(new WriteReply(new ArrayList<>(candidates)), talkbackAddr);
+        else
+            LOGGER.log(Level.INFO, "Ignoring write request");
     }
 
     private void handleMinorHeartbeatMsg(MinorHeartbeat msg)

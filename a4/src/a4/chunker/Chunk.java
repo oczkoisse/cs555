@@ -4,8 +4,10 @@ import a4.hash.Hasher;
 import a4.nodes.client.messages.WriteRequest;
 
 import java.io.*;
+import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
@@ -124,6 +126,21 @@ public class Chunk implements Externalizable, Iterable<Slice>
                 oout.writeObject(s);
             }
         }
+    }
+
+    public byte[] toBytes()
+    {
+        int totalBytes = 0;
+        for(Slice s: sliceList)
+            totalBytes += s.getSize();
+
+        byte[] bytes = new byte[totalBytes];
+        ByteBuffer buf = ByteBuffer.wrap(bytes);
+
+        for(Slice s: sliceList) {
+            buf.put(s.getSliceData());
+        }
+        return buf.array();
     }
 
     public Metadata getMetadata()

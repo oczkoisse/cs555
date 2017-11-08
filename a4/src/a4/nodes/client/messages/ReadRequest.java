@@ -7,23 +7,26 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class WriteRequest implements Message<ClientMessageType> {
+public class ReadRequest implements Message<ClientMessageType> {
 
     private String filename;
     private long seqNum;
     private int port;
 
-    public WriteRequest(String filename, long seqNum, int port) {
+    public ReadRequest(String filename, long seqNum, int port)
+    {
         if (filename == null)
-            throw new NullPointerException("Filename cannot be null");
+            throw new NullPointerException("Filename is null");
         if (seqNum < 0)
-            throw new IllegalArgumentException("Sequence number must be non-negative");
+            throw new IllegalArgumentException("Sequence number is negative");
+
         this.filename = filename;
         this.seqNum = seqNum;
         this.port = port;
     }
 
-    public WriteRequest() {
+    public ReadRequest()
+    {
         this.filename = null;
         this.seqNum = -1;
         this.port = -1;
@@ -31,7 +34,7 @@ public class WriteRequest implements Message<ClientMessageType> {
 
     @Override
     public ClientMessageType getMessageType() {
-        return ClientMessageType.WRITE_REQUEST;
+        return ClientMessageType.READ_REQUEST;
     }
 
     @Override
@@ -48,7 +51,8 @@ public class WriteRequest implements Message<ClientMessageType> {
         this.port = in.readInt();
     }
 
-    public String getFilename() {
+    public String getFilename()
+    {
         return filename;
     }
 
@@ -65,6 +69,6 @@ public class WriteRequest implements Message<ClientMessageType> {
     @Override
     public Enum isRequestFor()
     {
-        return ControllerMessageType.WRITE_REPLY;
+        return ControllerMessageType.READ_REPLY;
     }
 }

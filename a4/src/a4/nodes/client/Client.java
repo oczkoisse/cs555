@@ -3,16 +3,19 @@ package a4.nodes.client;
 import a4.chunker.Chunk;
 import a4.chunker.Chunker;
 import a4.chunker.Size;
+import a4.chunker.Slice;
+import a4.nodes.client.messages.ReadDataRequest;
+import a4.nodes.client.messages.ReadRequest;
 import a4.nodes.client.messages.WriteData;
 import a4.nodes.client.messages.WriteRequest;
 import a4.nodes.controller.messages.ControllerMessageType;
+import a4.nodes.controller.messages.ReadReply;
 import a4.nodes.controller.messages.WriteReply;
+import a4.nodes.server.messages.ReadData;
 import a4.transport.Message;
 import a4.transport.messenger.*;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -27,6 +30,8 @@ public class Client implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(Client.class.getName());
     private static final Size chunkSize = new Size(64, Size.Unit.K);
     private static final Size sliceSize = new Size(8, Size.Unit.K);
+    private static final Path saveDir = Paths.get(System.getProperty("java.io.tmpdir"));
+
 
     private final InetSocketAddress controllerAddress;
     private final Messenger messenger;
@@ -136,17 +141,16 @@ public class Client implements Runnable {
                 for(Chunk c: chunker)
                 {
                     MessageReceived ev = null;
-                    do
-                    {
-                        LOGGER.log(Level.INFO, String.format("Writing chunk %s:%d", c.getMetadata().getFileName(), c.getMetadata().getSequenceNum()));
-                        WriteRequest writeRequest = c.convertToWriteRequest(listeningPort);
-                        messenger.send(writeRequest, controllerAddress);
-                        ev = messenger.waitUpon(writeRequest);
-                        if (ev == null)
-                            LOGGER.log(Level.WARNING, "Timeout while waiting for response");
-                    } while (ev == null);
-
-                    handleWriteReplyMsg((WriteReply) ev.getMessage(), c);
+                    LOGGER.log(Level.INFO, String.format("Writing chunk %s:%d", c.getMetadata().getFileName(), c.getMetadata().getSequenceNum()));
+                    WriteRequest writeRequest = c.convertToWriteRequest(listeningPort);
+                    messenger.send(writeRequest, controllerAddress);
+                    ev = messenger.waitUpon(writeRequest);
+                    if (ev == null)
+                        LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + writeRequest.getMessageType());
+                    else if (ev.causedException())
+                        LOGGER.log(Level.WARNING, "Exception while waiting for response to " + writeRequest.getMessageType());
+                    else
+                        handleWriteReplyMsg((WriteReply) ev.getMessage(), c);
                 }
             }
             catch(IOException ex)
@@ -154,13 +158,61 @@ public class Client implements Runnable {
                 LOGGER.log(Level.SEVERE, ex.getMessage());
             }
         } else {
-            LOGGER.log(Level.INFO, pathToFile.toString() + " is not readable.");
+            LOGGER.log(Level.INFO, pathToFile.toString() + " is not readable");
         }
     }
 
-    public void readFile(String fileName)
+    public void readFile(String fileName, Path outDir) throws IOException
     {
+        int i = 0;
+        try(FileOutputStream fout = new FileOutputStream(Paths.get(outDir.toString(), fileName).toString());
+            BufferedOutputStream bout = new BufferedOutputStream(fout))
+        {
+            while(true) {
+                MessageReceived ev = null;
+                LOGGER.log(Level.INFO, String.format("Reading chunk %s:%d", fileName, i));
+                ReadRequest readRequest = new ReadRequest(fileName, i, listeningPort);
+                messenger.send(readRequest, controllerAddress);
+                ev = messenger.waitUpon(readRequest);
+                if (ev == null)
+                    LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + readRequest.getMessageType());
+                else if(ev.causedException())
+                    LOGGER.log(Level.WARNING, "Exception while waiting for response to " + readRequest.getMessageType());
+                else
+                {
+                    ReadReply reply = (ReadReply) ev.getMessage();
+                    if (reply.isDone())
+                        break;
+                    else {
 
+                        ReadData readData = handleReadReplyMsg(reply, fileName, i);
+                        if (readData != null)
+                            bout.write(readData.getChunk().toBytes());
+                    }
+                }
+            }
+        }
+    }
+
+    private ReadData handleReadReplyMsg(ReadReply msg, String fileName, int seqNum) {
+        // Ask the replica
+        MessageReceived ev = null;
+        InetSocketAddress replicaAddr = msg.getReplica();
+        ReadDataRequest readDataRequest = new ReadDataRequest(fileName, seqNum, listeningPort);
+        messenger.send(readDataRequest, replicaAddr);
+        ev = messenger.waitUpon(readDataRequest);
+        if (ev == null)
+        {
+            LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + readDataRequest.getMessageType());
+            return null;
+        }
+        else if (ev.causedException())
+        {
+            LOGGER.log(Level.WARNING, "Exception while waiting for response to " + readDataRequest.getMessageType());
+            return null;
+        }
+        else
+            return ((ReadData) ev.getMessage());
     }
 
     public void stop()
@@ -188,7 +240,7 @@ public class Client implements Runnable {
                     String[] commands = command.split("\\s*,\\s*");
                     if (commands.length == 2) {
                         if (commands[0].equalsIgnoreCase("r")) {
-                            c.readFile(commands[0]);
+                            c.readFile(commands[1], saveDir);
                         } else if (commands[0].equalsIgnoreCase("w")) {
                             try {
                                 Path pathToFile = Paths.get(commands[1]);

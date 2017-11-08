@@ -6,7 +6,7 @@ import a4.hash.Hasher;
 import java.io.*;
 import java.util.Arrays;
 
-class Slice implements Externalizable
+public class Slice implements Externalizable
 {
     private Size sliceSize;
     private byte[] sliceData;

@@ -33,7 +33,7 @@ public class Messenger
 
     private boolean listening;
 
-    private Map<Long, MessageReceived> locks = new HashMap<>();
+    private final Map<Enum, MessageReceived> locks = new HashMap<>();
 
     /**
      * Creates a new instance for listening on port as given by {@code listeningPort} with
@@ -96,19 +96,31 @@ public class Messenger
         {
             Message msg = Receiver.receive(source);
             ev.setMessage(msg);
-            long uid = -msg.getUID();
-            synchronized (locks)
+
+            if (msg.isResponseTo() != null)
             {
-                if (locks.containsKey(uid))
+                synchronized (locks)
                 {
-                    locks.put(uid, ev);
-                    locks.notify();
+                    if (locks.containsKey(msg.isResponseTo()))
+                    {
+                        locks.put(msg.isResponseTo(), ev);
+                        locks.notify();
+                    }
                 }
             }
         }
         catch (IOException | ClassNotFoundException e)
         {
             ev.setException(e);
+            // Tell all the waiting threads to stop waiting
+            synchronized (locks)
+            {
+                for(Enum en: locks.keySet())
+                {
+                    locks.put(en, ev);
+                    locks.notify();
+                }
+            }
         }
         return ev;
     }
@@ -125,19 +137,31 @@ public class Messenger
         {
             Message msg = Receiver.receive(sock);
             ev.setMessage(msg);
-            long uid = -msg.getUID();
-            synchronized (locks)
+
+            if (msg.isResponseTo() != null)
             {
-                if (locks.containsKey(uid))
+                synchronized (locks)
                 {
-                    locks.put(uid, ev);
-                    locks.notify();
+                    if (locks.containsKey(msg.isResponseTo()))
+                    {
+                        locks.put(msg.isResponseTo(), ev);
+                        locks.notify();
+                    }
                 }
             }
         }
         catch (IOException | ClassNotFoundException e)
         {
             ev.setException(e);
+            // Tell all the waiting threads to stop waiting
+            synchronized (locks)
+            {
+                for(Enum en: locks.keySet())
+                {
+                    locks.put(en, ev);
+                    locks.notify();
+                }
+            }
         }
         return ev;
     }
@@ -283,38 +307,45 @@ public class Messenger
     }
 
 
+    // Returns null if interrupted, or due to timeout
     public MessageReceived waitUpon(Message msg, int secondsToWait)
     {
-        long uid = msg.getUID();
-        if (uid > 0)
+        MessageReceived ev = null;
+        Enum msgType = msg.getMessageType();
+        // If message is a request for a reply
+        if (msg.isRequestFor() != null)
         {
             synchronized (locks)
             {
-                locks.put(uid, null);
+                // Create a sentinel, which will be null until a notify sets it to a received event with or without exception
+                locks.put(msgType, null);
                 long startTime = System.nanoTime();
                 try {
-                    while(locks.get(uid) == null)
+                    while(locks.get(msgType) == null)
                     {
-                        locks.wait(secondsToWait * 1000);
-                        long elapsed = System.nanoTime() - startTime;
-                        if (elapsed > secondsToWait * 1000000000L)
+                        if (secondsToWait == 0)
+                            locks.wait();
+                        else
                         {
-                            break;
+                            locks.wait(secondsToWait * 1000);
+                            long elapsed = System.nanoTime() - startTime;
+                            if (elapsed > secondsToWait * 1000000000L)
+                                break;
                         }
                     }
                 }
                 catch(InterruptedException ex) {}
-                MessageReceived ev = locks.get(uid);
-                locks.remove(uid);
-                return ev;
+
+                ev = locks.get(msgType);
+                locks.remove(msgType);
             }
         }
-        return null;
+        return ev;
     }
 
     public MessageReceived waitUpon(Message msg)
     {
-        return waitUpon(msg, 4);
+        return waitUpon(msg, 0);
     }
 
 }

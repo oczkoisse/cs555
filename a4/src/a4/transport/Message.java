@@ -15,8 +15,13 @@ public interface Message<E extends Enum<E>> extends java.io.Externalizable
      */
     E getMessageType();
 
-    default long getUID()
+    default Enum isResponseTo()
     {
-        return 0;
+        return null;
+    }
+
+    default Enum isRequestFor()
+    {
+        return null;
     }
 }

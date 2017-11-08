@@ -1,5 +1,6 @@
 package a4.nodes.controller.messages;
 
+import a4.nodes.client.messages.ClientMessageType;
 import a4.transport.Message;
 
 import java.io.IOException;
@@ -59,8 +60,8 @@ public class WriteReply implements Message<ControllerMessageType> {
     }
 
     @Override
-    public long getUID()
+    public Enum isResponseTo()
     {
-        return -100;
+        return ClientMessageType.WRITE_REQUEST;
     }
 }
