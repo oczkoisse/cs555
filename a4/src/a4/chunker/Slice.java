@@ -8,6 +8,8 @@ import java.util.Arrays;
 
 public class Slice implements Externalizable
 {
+    private static final long serialVersionUID = 1L;
+
     private Size sliceSize;
     private byte[] sliceData;
 

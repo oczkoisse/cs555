@@ -103,12 +103,41 @@ public class Controller
                     String dest = msev.getDestination().getHostName();
                     LOGGER.log(Level.INFO, "Looks like the chunk server at " + dest + " died" );
                     controllerTable.removeNode(msev.getDestination());
+                    initiateRecovery();
                 }
                 break;
             }
             default:
                 break;
         }
+    }
+
+    private void initiateRecovery()
+    {
+        for(String filename: controllerTable.getAllFiles())
+        {
+            for(Long seq: controllerTable.getAllSequenceNums(filename))
+            {
+                Set<InetSocketAddress> replicas = controllerTable.getCandidates(filename, seq);
+                if (replicas == null)
+                    continue;
+                LOGGER.log(Level.INFO, filename + ":" + seq + " needs to be replicated " + (REPLICATION - replicas.size()) + " times");
+                for(InetSocketAddress dest: replicas)
+                {
+                    InetSocketAddress exReplica = controllerTable.getExistingReplica(filename, seq);
+                    if (exReplica != null)
+                    {
+                        LOGGER.log(Level.INFO, "Requesting transfer of " + filename + ":" + seq + " to " + exReplica);
+                        messenger.send(new TransferRequest(filename, seq, dest), exReplica);
+                    }
+                    else
+                    {
+                        LOGGER.log(Level.SEVERE, "Completely lost " + filename + ":" + seq);
+                    }
+                }
+            }
+        }
+
     }
 
     private void handleEvent(Event ev)

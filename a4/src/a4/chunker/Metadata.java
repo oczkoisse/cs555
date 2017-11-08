@@ -12,6 +12,8 @@ import java.util.Date;
 
 public class Metadata implements Externalizable
 {
+    private static final long serialVersionUID = 1L;
+
     private static final Path saveDir = Paths.get(System.getProperty("java.io.tmpdir"));
 
     private static final Calendar calendar = Calendar.getInstance();

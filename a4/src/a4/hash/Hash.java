@@ -8,6 +8,7 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 public class Hash implements Externalizable {
+    private static final long serialVersionUID = 1L;
 
     private byte[] value;
 

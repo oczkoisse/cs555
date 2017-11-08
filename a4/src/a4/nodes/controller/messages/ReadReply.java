@@ -15,18 +15,18 @@ public class ReadReply implements Message<ControllerMessageType> {
 
     public ReadReply()
     {
-        this.failed = true;
         this.replica = null;
-        this.done = true;
+        this.done = false;
+        this.failed = true;
     }
 
     public ReadReply(InetSocketAddress replica)
     {
-        this.failed = false;
         if (replica == null)
             throw new NullPointerException("Replica is null");
         this.replica = replica;
         this.done = false;
+        this.failed = false;
     }
 
     @Override
@@ -68,6 +68,11 @@ public class ReadReply implements Message<ControllerMessageType> {
     }
 
     public boolean isFailed() { return failed; }
+
+    public void setDone(boolean done)
+    {
+        this.done = done;
+    }
 
     @Override
     public Enum isResponseTo()

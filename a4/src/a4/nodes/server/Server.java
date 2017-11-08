@@ -7,6 +7,7 @@ import a4.nodes.client.messages.ClientMessageType;
 import a4.nodes.client.messages.ReadDataRequest;
 import a4.nodes.client.messages.WriteData;
 import a4.nodes.controller.messages.RecoveryReply;
+import a4.nodes.controller.messages.TransferRequest;
 import a4.transport.Message;
 import a4.transport.messenger.*;
 import a4.chunker.Metadata;
@@ -164,6 +165,9 @@ public class Server
                     break;
                 case RECOVERY_REPLY:
                     break;
+                case TRANSFER_REQUEST:
+                    handleTransferRequestMsg((TransferRequest) msg);
+                    break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
@@ -188,10 +192,42 @@ public class Server
         {
             switch((ServerMessageType) msg.getMessageType())
             {
+                case TRANSFER_DATA:
+                    handleTransferDataMsg((TransferData) msg);
+                    break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
             }
+        }
+    }
+
+    private void handleTransferDataMsg(TransferData msg) {
+        try {
+            msg.getChunk().writeToFile();
+            serverTable.addChunk(msg.getChunk().getMetadata());
+        }
+        catch(IOException ex)
+        {
+            LOGGER.log(Level.WARNING, "Failed to write the transferred chunk to disk");
+        }
+    }
+
+    private void handleTransferRequestMsg(TransferRequest msg) {
+        Metadata chunkInfo = serverTable.getChunk(msg.getFilename(), msg.getSequenceNum());
+
+        try
+        {
+            Chunk c = new Chunk(chunkInfo.getStoragePath());
+            messenger.send(new TransferData(c), msg.getDestination());
+        }
+        catch(IntegrityCheckFailedException ex)
+        {
+            handleIntegrityCheckFailure(ex);
+        }
+        catch(IOException ex)
+        {
+            LOGGER.log(Level.INFO, "Unable to read chunk at " + chunkInfo.getStoragePath());
         }
     }
 
@@ -204,22 +240,26 @@ public class Server
         }
         catch(IntegrityCheckFailedException ex)
         {
-            LOGGER.log(Level.INFO, ex.getMessage());
-            RecoveryRequest recoveryRequest = new RecoveryRequest(ex.getChunk().getMetadata(), ownAddress.getPort());
-            messenger.send(recoveryRequest, controllerAddress);
-            MessageReceived ev = messenger.waitForReplyTo(recoveryRequest);
-            if (ev == null)
-                LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryRequest.getMessageType());
-            else if(ev.causedException())
-                LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryRequest.getMessageType());
-            else
-            {
-                handleRecoveryReplyMsg((RecoveryReply) ev.getMessage(), ex.getChunk(), ex.getFailedSlices());
-            }
+            handleIntegrityCheckFailure(ex);
         }
         catch(IOException ex)
         {
-            LOGGER.log(Level.INFO, "Unable to read chunk");
+            LOGGER.log(Level.INFO, "Unable to read chunk at " + m.getStoragePath());
+        }
+    }
+
+    private void handleIntegrityCheckFailure(IntegrityCheckFailedException ex) {
+        LOGGER.log(Level.INFO, ex.getMessage());
+        RecoveryRequest recoveryRequest = new RecoveryRequest(ex.getChunk().getMetadata(), ownAddress.getPort());
+        messenger.send(recoveryRequest, controllerAddress);
+        MessageReceived ev = messenger.waitForReplyTo(recoveryRequest);
+        if (ev == null)
+            LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryRequest.getMessageType());
+        else if(ev.causedException())
+            LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryRequest.getMessageType());
+        else
+        {
+            handleRecoveryReplyMsg((RecoveryReply) ev.getMessage(), ex.getChunk(), ex.getFailedSlices());
         }
     }
 
@@ -310,14 +350,13 @@ public class Server
 
     public static void main(String[] args)
     {
-
+        Server s = null;
         try
         {
             int ownPort = Integer.parseInt(args[0]);
             String controllerHost = args[1];
             int controllerPort = Integer.parseInt(args[2]);
-            Server s = new Server(ownPort, controllerHost, controllerPort);
-            s.run();
+            s = new Server(ownPort, controllerHost, controllerPort);
         }
         catch(NumberFormatException | IndexOutOfBoundsException ex)
         {
@@ -328,6 +367,8 @@ public class Server
             LOGGER.log(Level.INFO, "Cannot determine host name of the server");
             System.exit(0);
         }
+        if (s != null)
+            s.run();
 
     }
 }

@@ -7,6 +7,8 @@ import java.io.ObjectOutput;
 
 public class Size implements Externalizable
 {
+    private static final long serialVersionUID = 1L;
+
     public enum Unit
     {
         K(1024), M(1024 * 1024);

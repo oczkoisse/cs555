@@ -213,4 +213,16 @@ public class ControllerTable
         if (freeSpace < 0)
             throw new IllegalArgumentException("Free space must be non-negative");
     }
+
+    public Set<String> getAllFiles()
+    {
+        return chunkReplicas.keySet();
+    }
+
+    public Set<Long> getAllSequenceNums(String filename)
+    {
+        if (chunkReplicas.containsKey(filename))
+            return chunkReplicas.get(filename).keySet();
+        return null;
+    }
 }

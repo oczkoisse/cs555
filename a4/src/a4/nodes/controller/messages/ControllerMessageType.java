@@ -6,5 +6,6 @@ public enum ControllerMessageType
     READ_REPLY,
     RECOVERY_REPLY,
     MAJOR_HEARTBEAT_REQUEST,
-    CHECK_IF_ALIVE
+    CHECK_IF_ALIVE,
+    TRANSFER_REQUEST
 }
