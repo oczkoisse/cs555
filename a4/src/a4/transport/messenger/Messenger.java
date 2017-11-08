@@ -174,7 +174,7 @@ public class Messenger
         return null;
     }
 
-    public static void tell(Socket sock, Message msg) throws IOException
+    public static void reply(Socket sock, Message msg) throws IOException
     {
         if (msg == null)
             throw new NullPointerException("Response message cannot be null");

@@ -1,5 +1,7 @@
 package a4.nodes.controller;
 
+import a4.nodes.client.messages.ClientMessageType;
+import a4.nodes.client.messages.WriteRequest;
 import a4.transport.Message;
 import a4.transport.messenger.*;
 import a4.chunker.Metadata;
@@ -154,7 +156,20 @@ public class Controller
                     handleMinorHeartbeatMsg((MinorHeartbeat) msg);
                     break;
                 default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
+                    break;
+            }
+        }
+        else if (msgType instanceof ClientMessageType)
+        {
+            switch((ClientMessageType) msgType)
+            {
+                case WRITE_REQUEST:
+                    WriteRequest writeRequest = (WriteRequest) msg;
+                    nodeTable.getCandidateReplicas(writeRequest.getFilename(), writeRequest.getSeqNum());
+                    break;
+                default:
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
                     break;
             }
         }

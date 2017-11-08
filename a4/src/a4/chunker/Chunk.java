@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-class Chunk implements Externalizable, Iterable<Slice>
+public class Chunk implements Externalizable, Iterable<Slice>
 {
     private final Hasher hasher = Hasher.getHasherByName(Hash.Name.SHA1);
     private Metadata metadata;

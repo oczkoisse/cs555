@@ -1,5 +1,7 @@
 package a4.nodes.server;
 
+import a4.nodes.client.messages.ClientMessageType;
+import a4.nodes.client.messages.WriteData;
 import a4.transport.Message;
 import a4.transport.messenger.*;
 import a4.chunker.Metadata;
@@ -7,6 +9,7 @@ import a4.nodes.controller.messages.CheckIfAlive;
 import a4.nodes.controller.messages.ControllerMessageType;
 import a4.nodes.server.messages.*;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -142,22 +145,46 @@ public class Server
     {
         Message msg = ev.getMessage();
 
-        if (msg.getMessageType() == ControllerMessageType.MAJOR_HEARTBEAT_REQUEST)
-        {
-            this.messenger.send(prepareHeartbeatMessage(true), controllerAddress);
-        }
-        else if (msg.getMessageType() instanceof ControllerMessageType)
+        if (msg.getMessageType() instanceof ControllerMessageType)
         {
             switch ((ControllerMessageType) msg.getMessageType())
             {
                 case CHECK_IF_ALIVE:
                     handleCheckIfAliveMsg((CheckIfAlive) msg);
                     break;
+                case MAJOR_HEARTBEAT_REQUEST:
+                    this.messenger.send(prepareHeartbeatMessage(true), controllerAddress);
+                    break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
             }
         }
+        else if (msg.getMessageType() instanceof ClientMessageType)
+        {
+            switch ((ClientMessageType) msg.getMessageType())
+            {
+                case WRITE_DATA:
+                    handleWriteDataMsg((WriteData) msg);
+                    break;
+                default:
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
+                    break;
+            }
+        }
+    }
+
+    private void handleWriteDataMsg(WriteData msg) {
+        try
+        {
+            msg.getChunk().writeToFile();
+        }
+        catch(IOException ex)
+        {
+            LOGGER.log(Level.SEVERE, "Unable to write the chunk file " + msg.getChunk().getMetadata().getFileName());
+        }
+        if (msg.getForwardingAddress() != null)
+            messenger.send(msg, msg.getForwardingAddress());
     }
 
     private void handleCheckIfAliveMsg(CheckIfAlive msg)

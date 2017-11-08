@@ -11,8 +11,7 @@ public class WriteRequest implements Message<ClientMessageType> {
     private String filename;
     private long seqNum;
 
-    public WriteRequest(String filename, long seqNum)
-    {
+    public WriteRequest(String filename, long seqNum) {
         if (filename == null)
             throw new NullPointerException("Filename cannot be null");
         if (seqNum < 0)
@@ -21,8 +20,7 @@ public class WriteRequest implements Message<ClientMessageType> {
         this.seqNum = seqNum;
     }
 
-    public WriteRequest()
-    {
+    public WriteRequest() {
         this.filename = null;
         this.seqNum = -1;
     }
@@ -42,5 +40,14 @@ public class WriteRequest implements Message<ClientMessageType> {
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         this.filename = in.readUTF();
         this.seqNum = in.readLong();
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public long getSeqNum()
+    {
+        return seqNum;
     }
 }

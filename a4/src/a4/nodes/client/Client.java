@@ -1,5 +1,10 @@
 package a4.nodes.client;
 
+import a4.chunker.Chunk;
+import a4.chunker.Chunker;
+import a4.chunker.Size;
+import a4.nodes.client.messages.WriteData;
+import a4.nodes.controller.messages.WriteReply;
 import a4.transport.messenger.Event;
 import a4.transport.messenger.Messenger;
 
@@ -17,6 +22,8 @@ import java.util.logging.Logger;
 
 public class Client implements Runnable {
     private static final Logger LOGGER = Logger.getLogger(Client.class.getName());
+    private static final Size chunkSize = new Size(64, Size.Unit.K);
+    private static final Size sliceSize = new Size(8, Size.Unit.K);
 
     private final InetSocketAddress controllerAddress;
     private final Messenger messenger;
@@ -68,7 +75,24 @@ public class Client implements Runnable {
     }
 
     public void writeFile(Path pathToFile) {
+        if (Files.isReadable(pathToFile)) {
+            try(Chunker chunker = new Chunker(pathToFile, chunkSize, sliceSize))
+            {
+                for(Chunk c: chunker)
+                {
+                    WriteReply writeReply = (WriteReply) Messenger.ask(c.convertToWriteRequest(), controllerAddress);
+                    WriteData writeData = new WriteData(c, writeReply);
+                    this.messenger.send(writeData, writeData.getForwardingAddress());
+                }
+            }
+            catch(IOException ex)
+            {
+                LOGGER.log(Level.SEVERE, ex.getMessage());
+            }
 
+        } else {
+            LOGGER.log(Level.INFO, pathToFile.toString() + " is not readable.");
+        }
     }
 
     public void readFile(String fileName)
@@ -106,10 +130,7 @@ public class Client implements Runnable {
                             try {
                                 Path pathToFile = Paths.get(commands[1]);
 
-                                if (Files.isReadable(pathToFile)) {
-                                    c.writeFile(pathToFile);
-                                } else
-                                    System.out.println(pathToFile.toString() + " is not readable file");
+
                             } catch(InvalidPathException ex)
                             {
                                 System.out.println("Path is invalid: " + ex.getInput());
