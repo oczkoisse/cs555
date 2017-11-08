@@ -308,7 +308,7 @@ public class Messenger
 
 
     // Returns null if interrupted, or due to timeout
-    public MessageReceived waitUpon(Message msg, int secondsToWait)
+    public MessageReceived waitForReplyTo(Message msg, int secondsToWait)
     {
         MessageReceived ev = null;
         Enum msgType = msg.getMessageType();
@@ -343,9 +343,9 @@ public class Messenger
         return ev;
     }
 
-    public MessageReceived waitUpon(Message msg)
+    public MessageReceived waitForReplyTo(Message msg)
     {
-        return waitUpon(msg, 0);
+        return waitForReplyTo(msg, 0);
     }
 
 }

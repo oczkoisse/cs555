@@ -1,7 +1,12 @@
 package a4.nodes.server;
 
+import a4.chunker.Chunk;
+import a4.chunker.IntegrityCheckFailedException;
+import a4.chunker.Slice;
 import a4.nodes.client.messages.ClientMessageType;
+import a4.nodes.client.messages.ReadDataRequest;
 import a4.nodes.client.messages.WriteData;
+import a4.nodes.controller.messages.RecoveryReply;
 import a4.transport.Message;
 import a4.transport.messenger.*;
 import a4.chunker.Metadata;
@@ -14,8 +19,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,6 +39,8 @@ public class Server
     private final ScheduledExecutorService heart = Executors.newSingleThreadScheduledExecutor();
     private final InetSocketAddress ownAddress;
     private final InetSocketAddress controllerAddress;
+
+    private final ServerTable serverTable = new ServerTable();
 
     private Messenger messenger;
     private int minorHearbeatsCount;
@@ -62,8 +69,8 @@ public class Server
 
     private Heartbeat prepareHeartbeatMessage(boolean majorHeartbeat)
     {
-        List<Metadata> chunks = new ArrayList<>();
-        return majorHeartbeat ? new MajorHeartbeat(ownAddress, chunks) : new MinorHeartbeat(ownAddress, chunks, 0);
+        return majorHeartbeat ? new MajorHeartbeat(ownAddress, serverTable.getAllChunks()) :
+                new MinorHeartbeat(ownAddress, serverTable.getNewChunks(), serverTable.getAllChunks().size());
     }
 
     private void beat()
@@ -155,6 +162,8 @@ public class Server
                 case MAJOR_HEARTBEAT_REQUEST:
                     this.messenger.send(prepareHeartbeatMessage(true), controllerAddress);
                     break;
+                case RECOVERY_REPLY:
+                    break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
@@ -167,10 +176,89 @@ public class Server
                 case WRITE_DATA:
                     handleWriteDataMsg((WriteData) msg);
                     break;
+                case READ_DATA_REQUEST:
+                    handleReadDataRequest((ReadDataRequest) msg, ev.getSource().getHostName());
+                    break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
             }
+        }
+        else if (msg.getMessageType() instanceof ServerMessageType)
+        {
+            switch((ServerMessageType) msg.getMessageType())
+            {
+                default:
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
+                    break;
+            }
+        }
+    }
+
+    private void handleReadDataRequest(ReadDataRequest msg, String hostname) {
+        Metadata m = serverTable.getChunk(msg.getFilename(), msg.getSeqNum());
+        try
+        {
+            Chunk chunk = new Chunk(m.getStoragePath());
+            messenger.send(new ReadData(chunk), new InetSocketAddress(hostname, msg.getPort()));
+        }
+        catch(IntegrityCheckFailedException ex)
+        {
+            LOGGER.log(Level.INFO, ex.getMessage());
+            RecoveryRequest recoveryRequest = new RecoveryRequest(ex.getChunk().getMetadata(), ownAddress.getPort());
+            messenger.send(recoveryRequest, controllerAddress);
+            MessageReceived ev = messenger.waitForReplyTo(recoveryRequest);
+            if (ev == null)
+                LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryRequest.getMessageType());
+            else if(ev.causedException())
+                LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryRequest.getMessageType());
+            else
+            {
+                handleRecoveryReplyMsg((RecoveryReply) ev.getMessage(), ex.getChunk(), ex.getFailedSlices());
+            }
+        }
+        catch(IOException ex)
+        {
+            LOGGER.log(Level.INFO, "Unable to read chunk");
+        }
+    }
+
+    private boolean handleRecoveryReplyMsg(RecoveryReply msg, Chunk chunk, List<Integer> failedSlices) {
+        for(InetSocketAddress addr: msg.getReplicas())
+        {
+            if(!addr.equals(ownAddress))
+            {
+                RecoveryDataRequest recoveryDataRequest = new RecoveryDataRequest(chunk.getMetadata(), failedSlices, ownAddress.getPort());
+                MessageReceived ev = messenger.waitForReplyTo(recoveryDataRequest);
+                if (ev == null)
+                    LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryDataRequest.getMessageType());
+                else if(ev.causedException())
+                    LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryDataRequest.getMessageType());
+                else
+                {
+                    if(handleRecoveryDataMsg((RecoveryData) ev.getMessage(), chunk))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean handleRecoveryDataMsg(RecoveryData msg, Chunk chunk) {
+        try
+        {
+            // Fix the chunk slices
+            for(Map.Entry<Integer, Slice> e: msg.getRecoveryData())
+                chunk.fixSlice(e.getKey(), e.getValue());
+
+            // And write to file (overwriting)
+            chunk.writeToFile();
+            return true;
+        }
+        catch(IOException ex)
+        {
+            LOGGER.log(Level.INFO, "Error while writing the corrected chunk to file");
+            return false;
         }
     }
 
@@ -179,6 +267,7 @@ public class Server
         try
         {
             msg.getChunk().writeToFile();
+            serverTable.addChunk(msg.getChunk().getMetadata());
         }
         catch(IOException ex)
         {

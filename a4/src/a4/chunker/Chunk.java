@@ -80,7 +80,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
         if (failedSlices.size() > 0)
         {
             exMessage.append(String.format("Integrity check failed in %s for %d slices.%n", pathToChunkFile, failedSlices.size()));
-            throw new IntegrityCheckFailedException(exMessage.toString(), failedSlices);
+            throw new IntegrityCheckFailedException(exMessage.toString(), failedSlices, this);
         }
     }
 
@@ -88,6 +88,13 @@ public class Chunk implements Externalizable, Iterable<Slice>
     {
         this.metadata = null;
         this.sliceList = null;
+    }
+
+    public void fixSlice(int index, Slice slice)
+    {
+        if (index < 0 || index >= sliceList.size())
+            throw new IndexOutOfBoundsException("Slice index " + index + " is out of bounds for a chunk with " + sliceList.size() + " slices");
+        sliceList.set(index, slice);
     }
 
     public WriteRequest convertToWriteRequest(int port)

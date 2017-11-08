@@ -3,7 +3,6 @@ package a4.nodes.client;
 import a4.chunker.Chunk;
 import a4.chunker.Chunker;
 import a4.chunker.Size;
-import a4.chunker.Slice;
 import a4.nodes.client.messages.ReadDataRequest;
 import a4.nodes.client.messages.ReadRequest;
 import a4.nodes.client.messages.WriteData;
@@ -113,6 +112,10 @@ public class Client implements Runnable {
             switch((ControllerMessageType) msgType)
             {
                 case WRITE_REPLY:
+                    // Ignore this since we are processing write replies synchronously
+                    break;
+                case READ_REPLY:
+                    // Ignore this since we are processing read replies synchronously
                     break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
@@ -144,7 +147,7 @@ public class Client implements Runnable {
                     LOGGER.log(Level.INFO, String.format("Writing chunk %s:%d", c.getMetadata().getFileName(), c.getMetadata().getSequenceNum()));
                     WriteRequest writeRequest = c.convertToWriteRequest(listeningPort);
                     messenger.send(writeRequest, controllerAddress);
-                    ev = messenger.waitUpon(writeRequest);
+                    ev = messenger.waitForReplyTo(writeRequest);
                     if (ev == null)
                         LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + writeRequest.getMessageType());
                     else if (ev.causedException())
@@ -173,7 +176,7 @@ public class Client implements Runnable {
                 LOGGER.log(Level.INFO, String.format("Reading chunk %s:%d", fileName, i));
                 ReadRequest readRequest = new ReadRequest(fileName, i, listeningPort);
                 messenger.send(readRequest, controllerAddress);
-                ev = messenger.waitUpon(readRequest);
+                ev = messenger.waitForReplyTo(readRequest);
                 if (ev == null)
                     LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + readRequest.getMessageType());
                 else if(ev.causedException())
@@ -181,13 +184,24 @@ public class Client implements Runnable {
                 else
                 {
                     ReadReply reply = (ReadReply) ev.getMessage();
-                    if (reply.isDone())
+                    if (reply.isFailed())
+                    {
+                        LOGGER.log(Level.INFO, "File not found");
                         break;
+                    }
+                    if (reply.isDone())
+                    {
+                        LOGGER.log(Level.INFO, "Done reading");
+                        break;
+                    }
                     else {
 
                         ReadData readData = handleReadReplyMsg(reply, fileName, i);
                         if (readData != null)
+                        {
                             bout.write(readData.getChunk().toBytes());
+                            i++;
+                        }
                     }
                 }
             }
@@ -200,7 +214,7 @@ public class Client implements Runnable {
         InetSocketAddress replicaAddr = msg.getReplica();
         ReadDataRequest readDataRequest = new ReadDataRequest(fileName, seqNum, listeningPort);
         messenger.send(readDataRequest, replicaAddr);
-        ev = messenger.waitUpon(readDataRequest);
+        ev = messenger.waitForReplyTo(readDataRequest);
         if (ev == null)
         {
             LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + readDataRequest.getMessageType());

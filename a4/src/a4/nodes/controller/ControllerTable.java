@@ -4,7 +4,7 @@ import java.net.InetSocketAddress;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 
-public class NodeTable
+public class ControllerTable
 {
     private static final Random random = ThreadLocalRandom.current();
 
@@ -12,7 +12,7 @@ public class NodeTable
     private Map<String, Map<Long, Set<InetSocketAddress>>> chunkReplicas;
     private final int replication;
 
-    public NodeTable(int replication)
+    public ControllerTable(int replication)
     {
         this.nodes = new HashMap<>();
         this.chunkReplicas = new HashMap<>();
