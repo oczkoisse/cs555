@@ -100,7 +100,7 @@ public class Server
                     handleEvent(ev);
                 else
                 {
-                    LOGGER.log(Level.SEVERE, "Received event caused an exception: " + ev.getException().getMessage());
+                    LOGGER.log(Level.SEVERE, "Received event caused an exception: " + ev.getException());
                     handleFailedEvent(ev);
                 }
             } catch (ExecutionException ex) {
@@ -175,6 +175,7 @@ public class Server
     }
 
     private void handleWriteDataMsg(WriteData msg) {
+        LOGGER.log(Level.INFO, "Received " + msg.getChunk().getMetadata().getFileName() + ":" + msg.getChunk().getMetadata().getSequenceNum());
         try
         {
             msg.getChunk().writeToFile();
@@ -184,7 +185,12 @@ public class Server
             LOGGER.log(Level.SEVERE, "Unable to write the chunk file " + msg.getChunk().getMetadata().getFileName());
         }
         if (msg.getForwardingAddress() != null)
+        {
+            LOGGER.log(Level.INFO, "Forwarding to " + msg.getForwardingAddress());
             messenger.send(msg, msg.getForwardingAddress());
+        }
+        else
+            LOGGER.log(Level.INFO, "Final destination");
     }
 
     private void handleCheckIfAliveMsg(CheckIfAlive msg)

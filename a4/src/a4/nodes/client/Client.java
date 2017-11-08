@@ -4,14 +4,17 @@ import a4.chunker.Chunk;
 import a4.chunker.Chunker;
 import a4.chunker.Size;
 import a4.nodes.client.messages.WriteData;
+import a4.nodes.client.messages.WriteRequest;
+import a4.nodes.controller.messages.ControllerMessageType;
 import a4.nodes.controller.messages.WriteReply;
-import a4.transport.messenger.Event;
-import a4.transport.messenger.Messenger;
+import a4.transport.Message;
+import a4.transport.messenger.*;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
@@ -27,9 +30,11 @@ public class Client implements Runnable {
 
     private final InetSocketAddress controllerAddress;
     private final Messenger messenger;
+    private final int listeningPort;
     private volatile boolean isRunning = true;
 
     public Client(int listeningPort, String controllerHost, int controllerPort) {
+        this.listeningPort = listeningPort;
         this.controllerAddress = new InetSocketAddress(controllerHost, controllerPort);
         this.messenger = new Messenger(listeningPort, 4);
     }
@@ -67,8 +72,58 @@ public class Client implements Runnable {
     }
 
     private void handleEvent(Event ev) {
+        switch(ev.getEventType())
+        {
+            case INTERRUPT_RECEIVED:
+                messenger.stop();
+                break;
+            case MESSAGE_RECEIVED:
+                handleMessageReceivedEvent((MessageReceived) ev);
+                break;
+            case MESSAGE_SENT:
+                handleMessageSentEvent((MessageSent) ev);
+                break;
+            case CONNECTION_RECEIVED:
+                handleConnectionReceivedEvent((ConnectionReceived) ev);
+                break;
+        }
+    }
+
+    private void handleConnectionReceivedEvent(ConnectionReceived ev) {
+        Socket sock = ev.getSocket();
+        LOGGER.log(Level.FINE, "Received a new connection request from " + sock.getInetAddress());
+        messenger.receive(sock);
+    }
+
+    private void handleMessageSentEvent(MessageSent ev) {
 
     }
+
+    private void handleMessageReceivedEvent(MessageReceived ev) {
+        Message msg = ev.getMessage();
+        Enum msgType = msg.getMessageType();
+
+        if(msgType instanceof ControllerMessageType)
+        {
+            switch((ControllerMessageType) msgType)
+            {
+                case WRITE_REPLY:
+                    break;
+                default:
+                    LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
+                    break;
+            }
+        }
+
+    }
+
+    private void handleWriteReplyMsg(WriteReply msg, Chunk chunk)
+    {
+        WriteData writeData = new WriteData(chunk, msg);
+        LOGGER.log(Level.INFO, msg.getNodesToWriteTo().toString());
+        messenger.send(writeData, writeData.getForwardingAddress());
+    }
+
 
     private static void printUsage() {
         System.out.println("Usage: " + Client.class.getCanonicalName() + " <ListeningPort> <ControllerHost> <ControllerPort>");
@@ -80,16 +135,24 @@ public class Client implements Runnable {
             {
                 for(Chunk c: chunker)
                 {
-                    WriteReply writeReply = (WriteReply) Messenger.ask(c.convertToWriteRequest(), controllerAddress);
-                    WriteData writeData = new WriteData(c, writeReply);
-                    this.messenger.send(writeData, writeData.getForwardingAddress());
+                    MessageReceived ev = null;
+                    do
+                    {
+                        LOGGER.log(Level.INFO, String.format("Writing chunk %s:%d", c.getMetadata().getFileName(), c.getMetadata().getSequenceNum()));
+                        WriteRequest writeRequest = c.convertToWriteRequest(listeningPort);
+                        messenger.send(writeRequest, controllerAddress);
+                        ev = messenger.waitUpon(writeRequest);
+                        if (ev == null)
+                            LOGGER.log(Level.WARNING, "Timeout while waiting for response");
+                    } while (ev == null);
+
+                    handleWriteReplyMsg((WriteReply) ev.getMessage(), c);
                 }
             }
             catch(IOException ex)
             {
                 LOGGER.log(Level.SEVERE, ex.getMessage());
             }
-
         } else {
             LOGGER.log(Level.INFO, pathToFile.toString() + " is not readable.");
         }
@@ -129,7 +192,7 @@ public class Client implements Runnable {
                         } else if (commands[0].equalsIgnoreCase("w")) {
                             try {
                                 Path pathToFile = Paths.get(commands[1]);
-
+                                c.writeFile(pathToFile);
 
                             } catch(InvalidPathException ex)
                             {

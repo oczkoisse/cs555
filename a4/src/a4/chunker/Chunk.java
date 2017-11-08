@@ -88,9 +88,9 @@ public class Chunk implements Externalizable, Iterable<Slice>
         this.sliceList = null;
     }
 
-    public WriteRequest convertToWriteRequest()
+    public WriteRequest convertToWriteRequest(int port)
     {
-        return new WriteRequest(this.metadata.getFileName().toString(), this.metadata.getSequenceNum());
+        return new WriteRequest(this.metadata.getFileName().toString(), this.metadata.getSequenceNum(), port);
     }
 
     @Override
@@ -105,6 +105,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
     {
+        this.metadata = (Metadata) in.readObject();
         this.sliceList = new ArrayList<>();
         int sliceCount = in.readInt();
         for (int i=0; i < sliceCount; i++)

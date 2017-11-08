@@ -13,6 +13,9 @@ import a4.nodes.server.messages.ServerMessageType;
 
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -166,7 +169,12 @@ public class Controller
             {
                 case WRITE_REQUEST:
                     WriteRequest writeRequest = (WriteRequest) msg;
-                    nodeTable.getCandidateReplicas(writeRequest.getFilename(), writeRequest.getSeqNum());
+                    InetSocketAddress talkbackAddr = new InetSocketAddress(ev.getSource().getHostName(), writeRequest.getPort());
+                    Set<InetSocketAddress> candidates = nodeTable.getCandidates(writeRequest.getFilename(), writeRequest.getSeqNum());
+                    if (candidates != null && candidates.size() == REPLICATION)
+                        this.messenger.send(new WriteReply(new ArrayList<>(candidates)), talkbackAddr);
+                    else
+                        LOGGER.log(Level.INFO, "Ignoring write request");
                     break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);

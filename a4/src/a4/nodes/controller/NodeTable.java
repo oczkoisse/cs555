@@ -110,6 +110,7 @@ public class NodeTable
         return added;
     }
 
+    // For overwriting
     public Set<InetSocketAddress> getAllReplicas(String filename, long sequenceNum)
     {
         validateFileName(filename);
@@ -124,6 +125,7 @@ public class NodeTable
         return null;
     }
 
+    // For reading
     public InetSocketAddress getExistingReplica(String filename, long sequenceNum)
     {
         validateFileName(filename);
@@ -146,17 +148,18 @@ public class NodeTable
         return null;
     }
 
-    public Set<InetSocketAddress> getCandidateReplicas(String filename, long sequenceNum)
+    // For writing
+    public Set<InetSocketAddress> getCandidates(String filename, long sequenceNum)
     {
         synchronized (chunkReplicas)
         {
-            int replicaCount = getAllReplicas(filename, sequenceNum).size();
-            if (replicaCount >= replication)
+            Set<InetSocketAddress> replicas = getAllReplicas(filename, sequenceNum);
+            if (replicas != null && replicas.size() >= replication)
                 return null;
             else
             {
                 Set<InetSocketAddress> candidates = new HashSet<>();
-                int count = replication - replicaCount;
+                int count = replicas == null ? replication : replication - replicas.size();
                 synchronized (nodes)
                 {
                     Set<InetSocketAddress> nodesAddresses = nodes.keySet();

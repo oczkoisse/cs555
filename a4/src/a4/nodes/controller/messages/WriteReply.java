@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -42,8 +43,11 @@ public class WriteReply implements Message<ControllerMessageType> {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        if (nodesToWriteTo != null)
+        if (nodesToWriteTo == null)
+            nodesToWriteTo = new ArrayList<>();
+        else
             nodesToWriteTo.clear();
+
         int sz = in.readInt();
         for(int i=0; i<sz; i++)
             nodesToWriteTo.add((InetSocketAddress) in.readObject());
@@ -52,5 +56,11 @@ public class WriteReply implements Message<ControllerMessageType> {
     public List<InetSocketAddress> getNodesToWriteTo()
     {
         return Collections.unmodifiableList(nodesToWriteTo);
+    }
+
+    @Override
+    public long getUID()
+    {
+        return -100;
     }
 }

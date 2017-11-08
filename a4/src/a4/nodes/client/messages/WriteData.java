@@ -50,12 +50,13 @@ public class WriteData implements Message<ClientMessageType> {
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
 
-        if (forwardingAddresses != null)
+        if (forwardingAddresses == null)
+            forwardingAddresses = new ArrayList<>();
+        else
             forwardingAddresses.clear();
 
         int sz = in.readInt();
-        if (sz > 1)
-            forwardingAddresses = new ArrayList<>();
+
         for(int i=0; i<sz; i++) {
             InetSocketAddress addr = (InetSocketAddress) in.readObject();
             if (i > 0)

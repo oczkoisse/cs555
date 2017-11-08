@@ -8,6 +8,8 @@ import a4.transport.Sender;
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +32,8 @@ public class Messenger
     private Listener listener;
 
     private boolean listening;
+
+    private Map<Long, MessageReceived> locks = new HashMap<>();
 
     /**
      * Creates a new instance for listening on port as given by {@code listeningPort} with
@@ -85,12 +89,22 @@ public class Messenger
      * @param source IP Address of the source
      * @return {@link MessageReceived} event that may wrap an {@link IOException} or {@link ClassNotFoundException} on failure
      */
-    private static MessageReceived tryReceive(InetSocketAddress source)
+    private MessageReceived tryReceive(InetSocketAddress source)
     {
         MessageReceived ev = new MessageReceived(source);
         try
         {
-            ev.setMessage(Receiver.receive(source));
+            Message msg = Receiver.receive(source);
+            ev.setMessage(msg);
+            long uid = -msg.getUID();
+            synchronized (locks)
+            {
+                if (locks.containsKey(uid))
+                {
+                    locks.put(uid, ev);
+                    locks.notify();
+                }
+            }
         }
         catch (IOException | ClassNotFoundException e)
         {
@@ -104,12 +118,22 @@ public class Messenger
      * @param sock Connection to the source
      * @return {@link MessageReceived} event that may wrap an {@link IOException} or {@link ClassNotFoundException} on failure
      */
-    private static MessageReceived tryReceive(Socket sock)
+    private MessageReceived tryReceive(Socket sock)
     {
         MessageReceived ev = new MessageReceived(sock);
         try
         {
-            ev.setMessage(Receiver.receive(sock));
+            Message msg = Receiver.receive(sock);
+            ev.setMessage(msg);
+            long uid = -msg.getUID();
+            synchronized (locks)
+            {
+                if (locks.containsKey(uid))
+                {
+                    locks.put(uid, ev);
+                    locks.notify();
+                }
+            }
         }
         catch (IOException | ClassNotFoundException e)
         {
@@ -150,43 +174,6 @@ public class Messenger
             LOGGER.log(Level.WARNING, "Ignored a request to send a null or NULL_PEER message");
     }
 
-    public static Message ask(Message msg, InetSocketAddress destination) throws IOException
-    {
-        if (msg != null)
-        {
-            try(Socket sock = new Socket(destination.getAddress(), destination.getPort());
-                OutputStream out = sock.getOutputStream();
-                InputStream in = sock.getInputStream();
-                ObjectOutputStream oout = new ObjectOutputStream(out);
-                ObjectInputStream oin = new ObjectInputStream(in))
-            {
-                oout.writeObject(msg);
-                return (Message) oin.readObject();
-            }
-            catch(ClassNotFoundException ex)
-            {
-                LOGGER.log(Level.SEVERE, ex.getMessage());
-            }
-        }
-        else
-            throw new NullPointerException("Asking message cannot be null");
-
-        return null;
-    }
-
-    public static void reply(Socket sock, Message msg) throws IOException
-    {
-        if (msg == null)
-            throw new NullPointerException("Response message cannot be null");
-
-        try(Socket s = sock;
-            OutputStream out = s.getOutputStream();
-            ObjectOutputStream oout = new ObjectOutputStream(out))
-        {
-            oout.writeObject(msg);
-        }
-    }
-
     /**
      * Asynchronous request for receiving a message from source. This will generate a {@link MessageReceived}
      * event in the future, whether successful or not.
@@ -194,7 +181,7 @@ public class Messenger
      */
     public void receive(InetSocketAddress source)
     {
-        this.executorCompletionService.submit(() -> Messenger.tryReceive(source));
+        this.executorCompletionService.submit(() -> this.tryReceive(source));
     }
 
     /**
@@ -204,7 +191,7 @@ public class Messenger
      */
     public void receive(Socket sock)
     {
-        this.executorCompletionService.submit(() -> Messenger.tryReceive(sock));
+        this.executorCompletionService.submit(() -> this.tryReceive(sock));
     }
 
     /**
@@ -294,4 +281,40 @@ public class Messenger
         stop();
         return executorService.awaitTermination(secondsToWait, TimeUnit.SECONDS);
     }
+
+
+    public MessageReceived waitUpon(Message msg, int secondsToWait)
+    {
+        long uid = msg.getUID();
+        if (uid > 0)
+        {
+            synchronized (locks)
+            {
+                locks.put(uid, null);
+                long startTime = System.nanoTime();
+                try {
+                    while(locks.get(uid) == null)
+                    {
+                        locks.wait(secondsToWait * 1000);
+                        long elapsed = System.nanoTime() - startTime;
+                        if (elapsed > secondsToWait * 1000000000L)
+                        {
+                            break;
+                        }
+                    }
+                }
+                catch(InterruptedException ex) {}
+                MessageReceived ev = locks.get(uid);
+                locks.remove(uid);
+                return ev;
+            }
+        }
+        return null;
+    }
+
+    public MessageReceived waitUpon(Message msg)
+    {
+        return waitUpon(msg, 4);
+    }
+
 }

@@ -41,7 +41,7 @@ public final class Receiver
     public static Message receive(Socket sock) throws IOException, ClassNotFoundException
     {
         try (Socket s = sock;
-             ObjectInputStream ins = new ObjectInputStream(sock.getInputStream()))
+             ObjectInputStream ins = new ObjectInputStream(s.getInputStream()))
         {
             return (Message) ins.readObject();
         }
