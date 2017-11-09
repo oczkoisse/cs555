@@ -44,9 +44,31 @@ public class Controller
         this.controllerTable = new ControllerTable(REPLICATION);
     }
 
+    public void printSummary()
+    {
+        synchronized (controllerTable)
+        {
+            Set<String> files = controllerTable.getAllFiles();
+            if (files != null)
+            for(String file: files)
+            {
+                Set<Long> seqNums = controllerTable.getAllSequenceNums(file);
+                if (seqNums != null)
+                {
+                    for(Long l: seqNums)
+                    {
+                        System.out.println(file + ":" + l + " -> " + controllerTable.getAllReplicas(file, l));
+                    }
+                }
+            }
+            System.out.println();
+        }
+    }
+
     private void beat()
     {
         LOGGER.log(Level.FINE, "BEAT");
+        printSummary();
 
         for(InetSocketAddress address: controllerTable.getAllNodes())
         {
@@ -118,11 +140,11 @@ public class Controller
         {
             for(Long seq: controllerTable.getAllSequenceNums(filename))
             {
-                Set<InetSocketAddress> replicas = controllerTable.getCandidates(filename, seq);
-                if (replicas == null)
+                Set<InetSocketAddress> candidates = controllerTable.getCandidates(filename, seq);
+                if (candidates == null)
                     continue;
-                LOGGER.log(Level.INFO, filename + ":" + seq + " needs to be replicated " + (REPLICATION - replicas.size()) + " times");
-                for(InetSocketAddress dest: replicas)
+                LOGGER.log(Level.INFO, filename + ":" + seq + " needs to be replicated " + candidates.size() + " times");
+                for(InetSocketAddress dest: candidates)
                 {
                     InetSocketAddress exReplica = controllerTable.getExistingReplica(filename, seq);
                     if (exReplica != null)
@@ -242,11 +264,14 @@ public class Controller
 
     private void handleMinorHeartbeatMsg(MinorHeartbeat msg)
     {
+        LOGGER.log(Level.INFO, "Received minor heartbeat");
         InetSocketAddress listeningAddress = msg.getListeningAddress();
         synchronized (controllerTable)
         {
-            if (!controllerTable.hasNode(listeningAddress))
+            if (!controllerTable.hasNode(listeningAddress)) {
+                LOGGER.log(Level.INFO, "New chunk server detected at " + listeningAddress + ". Requesting major heartbeat");
                 messenger.send(majorHeartbeatRequest, listeningAddress);
+            }
             else
             {
                 controllerTable.updateNode(listeningAddress, msg.getFreeSpace());
@@ -269,6 +294,7 @@ public class Controller
 
     private void handleMajorHeartbeatMsg(MajorHeartbeat msg)
     {
+        LOGGER.log(Level.INFO, "Received major heartbeat");
         InetSocketAddress listeningAddress = msg.getListeningAddress();
         synchronized (controllerTable)
         {

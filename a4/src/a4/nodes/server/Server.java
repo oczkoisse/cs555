@@ -61,6 +61,22 @@ public class Server
         System.out.println("Usage: " + Server.class.getCanonicalName() + " <ListeningPort> <ControllerHost> <ControllerPort>");
     }
 
+    public void printSummary()
+    {
+        // List of files and the chunks being held for each of them
+        synchronized (serverTable)
+        {
+            List<Metadata> chunks = serverTable.getAllChunks();
+            if (chunks != null)
+            {
+                for(Metadata m: chunks)
+                {
+                    System.out.println(m.getFileName() + ":" + m.getSequenceNum());
+                }
+            }
+        }
+    }
+
     private void listen()
     {
         messenger.listen();
@@ -76,6 +92,8 @@ public class Server
 
     private void beat()
     {
+        printSummary();
+
         minorHearbeatsCount++;
         boolean majorHearbeat = false;
         if (minorHearbeatsCount == minorHeartbeatsPerMajorHeartbeat)

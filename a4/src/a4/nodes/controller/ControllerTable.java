@@ -168,7 +168,6 @@ public class ControllerTable
                     if (nodesAddresses.size() < count)
                         return null;
 
-
                     while (candidates.size() < count)
                     {
                         int n = random.nextInt(nodes.size());
@@ -177,7 +176,7 @@ public class ControllerTable
                         {
                             if (i == n)
                             {
-                                if(!candidates.contains(address))
+                                if(replicas == null || !replicas.contains(address))
                                     candidates.add(address);
                                 break;
                             }
