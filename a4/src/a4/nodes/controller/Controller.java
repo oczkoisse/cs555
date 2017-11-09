@@ -159,7 +159,6 @@ public class Controller
                 }
             }
         }
-
     }
 
     private void handleEvent(Event ev)

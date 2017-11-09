@@ -154,7 +154,7 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
                 throw new NoSuchElementException("next() called on an ended stream");
 
             Metadata m = new Metadata(fileName.toString(), seq++, 0);
-            return new Chunk(m, sliceList);
+            return new Chunk(m, sliceList, !hasNext());
         }
 
         private void close() throws IOException

@@ -16,8 +16,9 @@ public class Chunk implements Externalizable, Iterable<Slice>
     private final Hasher hasher = Hasher.getHasherByName(Hash.Name.SHA1);
     private Metadata metadata;
     private List<Slice> sliceList;
+    private boolean last;
 
-    public Chunk(Metadata metadata, List<Slice> sliceList)
+    public Chunk(Metadata metadata, List<Slice> sliceList, boolean last)
     {
         if (metadata == null)
             throw new NullPointerException("Metadata is null");
@@ -28,6 +29,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
 
         this.metadata = metadata;
         this.sliceList = sliceList;
+        this.last = last;
     }
 
     /**
@@ -46,6 +48,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
             BufferedInputStream bin = new BufferedInputStream(fin);
             ObjectInputStream oin = new ObjectInputStream(bin)) {
 
+            this.last = oin.readBoolean();
             this.metadata = (Metadata) oin.readObject();
             sliceCount = oin.readInt();
 
@@ -88,6 +91,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
     {
         this.metadata = null;
         this.sliceList = null;
+        this.last = false;
     }
 
     public void fixSlice(int index, Slice slice)
@@ -105,6 +109,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {
+        out.writeBoolean(last);
         out.writeObject(metadata);
         out.writeInt(sliceList.size());
         for(Slice s: sliceList)
@@ -114,6 +119,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException
     {
+        this.last = in.readBoolean();
         this.metadata = (Metadata) in.readObject();
         this.sliceList = new ArrayList<>();
         int sliceCount = in.readInt();
@@ -126,6 +132,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
         try(FileOutputStream fout = new FileOutputStream(this.metadata.getStoragePath().toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout);
             ObjectOutputStream oout = new ObjectOutputStream(bout)) {
+            oout.writeBoolean(last);
             oout.writeObject(metadata);
             oout.writeInt(sliceList.size());
             for (Slice s : sliceList) {
@@ -148,6 +155,11 @@ public class Chunk implements Externalizable, Iterable<Slice>
             buf.put(s.getSliceData());
         }
         return buf.array();
+    }
+
+    public boolean isLast()
+    {
+        return last;
     }
 
     public Metadata getMetadata()

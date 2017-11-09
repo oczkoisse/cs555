@@ -171,7 +171,8 @@ public class Client implements Runnable {
         try(FileOutputStream fout = new FileOutputStream(Paths.get(outDir.toString(), fileName).toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout))
         {
-            while(true) {
+            boolean last = false;
+            do {
                 MessageReceived ev = null;
                 LOGGER.log(Level.INFO, String.format("Reading chunk %s:%d", fileName, i));
                 ReadRequest readRequest = new ReadRequest(fileName, i, listeningPort);
@@ -189,22 +190,19 @@ public class Client implements Runnable {
                         LOGGER.log(Level.INFO, "File not found");
                         break;
                     }
-                    if (reply.isDone())
-                    {
-                        LOGGER.log(Level.INFO, "Done reading");
-                        break;
-                    }
                     else {
 
                         ReadData readData = handleReadReplyMsg(reply, fileName, i);
                         if (readData != null)
                         {
-                            bout.write(readData.getChunk().toBytes());
+                            Chunk c = readData.getChunk();
+                            bout.write(c.toBytes());
+                            last = c.isLast();
                             i++;
                         }
                     }
                 }
-            }
+            } while(!last);
         }
     }
 

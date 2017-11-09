@@ -10,13 +10,11 @@ import java.net.InetSocketAddress;
 
 public class ReadReply implements Message<ControllerMessageType> {
     private InetSocketAddress replica;
-    private boolean done;
     private boolean failed;
 
     public ReadReply()
     {
         this.replica = null;
-        this.done = false;
         this.failed = true;
     }
 
@@ -25,7 +23,6 @@ public class ReadReply implements Message<ControllerMessageType> {
         if (replica == null)
             throw new NullPointerException("Replica is null");
         this.replica = replica;
-        this.done = false;
         this.failed = false;
     }
 
@@ -39,9 +36,7 @@ public class ReadReply implements Message<ControllerMessageType> {
         out.writeBoolean(failed);
         if(!failed)
         {
-            out.writeBoolean(done);
-            if(!done)
-                out.writeObject(replica);
+            out.writeObject(replica);
         }
     }
 
@@ -50,11 +45,7 @@ public class ReadReply implements Message<ControllerMessageType> {
         this.failed = in.readBoolean();
         if (!this.failed)
         {
-            this.done = in.readBoolean();
-            if (!this.done)
-                this.replica = (InetSocketAddress) in.readObject();
-            else
-                this.replica = null;
+            this.replica = (InetSocketAddress) in.readObject();
         }
     }
 
@@ -62,17 +53,7 @@ public class ReadReply implements Message<ControllerMessageType> {
         return replica;
     }
 
-    public boolean isDone()
-    {
-        return done;
-    }
-
     public boolean isFailed() { return failed; }
-
-    public void setDone(boolean done)
-    {
-        this.done = done;
-    }
 
     @Override
     public Enum isResponseTo()
