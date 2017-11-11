@@ -14,7 +14,7 @@ public class ChunkerTest
     @Test
     public void createWriteAndReadChunks() throws Exception
     {
-        String testFile = getClass().getResource("/big_text.txt").getPath().substring(1);
+        String testFile = getClass().getResource("/big_text.txt").getPath();
         System.out.println("Chunking " + testFile);
         Size chunkSize = new Size(64, Size.Unit.K);
         Size sliceSize = new Size(8, Size.Unit.K);
@@ -42,11 +42,27 @@ public class ChunkerTest
     }
 
     @Test
-    public void testMessedChunk()
+    public void testCreateChunk() throws  IOException
     {
-        Path chunkMessedAtBeginning = Paths.get(getClass().getResource("/chunk_messed_at_beginning.txt_0").getPath().substring(1));
-        Path chunkMessedAtEnd = Paths.get(getClass().getResource("/chunk_messed_at_end.txt_0").getPath().substring(1));
-        Path chunkMessedInBetween = Paths.get(getClass().getResource("/chunk_messed_in_between.txt_0").getPath().substring(1));
+        Size chunkSize = new Size(64, Size.Unit.K);
+        Size sliceSize = new Size(8, Size.Unit.K);
+
+        Path source = Paths.get(getClass().getResource("/big_text.txt").getPath());
+        try(Chunker chunker = new Chunker(source, chunkSize, sliceSize))
+        {
+            for(Chunk c: chunker)
+            {
+                c.writeToFile();
+            }
+        }
+    }
+
+    @Test
+    public void testMessedChunk() throws IOException
+    {
+        Path chunkMessedAtBeginning = Paths.get(getClass().getResource("/chunk_start.txt_6").getPath());
+        Path chunkMessedInBetween = Paths.get(getClass().getResource("/chunk_between.txt_6").getPath());
+        Path chunkMessedAtEnd = Paths.get(getClass().getResource("/chunk_end.txt_6").getPath());
 
         Size chunkSize = new Size(64, Size.Unit.K);
         Size sliceSize = new Size(8, Size.Unit.K);
@@ -64,9 +80,13 @@ public class ChunkerTest
                 Chunk c = new Chunk(p);
                 Assert.fail(p.getFileName() + " should have failed integrity check");
             }
-            catch(IntegrityCheckFailedException | IOException ex)
+            catch(IntegrityCheckFailedException ex)
             {
                 System.out.println(ex.getMessage());
+            }
+            catch(IOException ex)
+            {
+                System.out.println(ex + ", " + ex.getMessage());
             }
         }
 

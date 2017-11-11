@@ -20,6 +20,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -181,6 +182,8 @@ public class Server
                 case MAJOR_HEARTBEAT_REQUEST:
                     this.messenger.send(prepareHeartbeatMessage(true), controllerAddress);
                     break;
+                case READ_REPLY:
+                    break;
                 case RECOVERY_REPLY:
                     break;
                 case TRANSFER_REQUEST:
@@ -213,10 +216,54 @@ public class Server
                 case TRANSFER_DATA:
                     handleTransferDataMsg((TransferData) msg);
                     break;
+                case RECOVERY_DATA_REQUEST:
+                    handleRecoveryDataRequestMsg((RecoveryDataRequest) msg, ev.getSource().getHostName());
+                    break;
+                case RECOVERY_DATA:
+                    break;
                 default:
                     LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
                     break;
             }
+        }
+    }
+
+    private void handleRecoveryDataRequestMsg(RecoveryDataRequest msg, String hostName) {
+        LOGGER.log(Level.INFO, "Received Recovery Data request from " + hostName + ":" + msg.getListeningPort());
+        Metadata m = serverTable.getChunk(msg.getFilename(), msg.getSequenceNum());
+        if (m == null)
+        {
+            LOGGER.log(Level.WARNING, "Chunk found to be missing in response to recovery data request");
+            return;
+        }
+
+        try
+        {
+            Chunk c = new Chunk(m.getStoragePath());
+            int i = 0;
+            List<Slice> slices = new ArrayList<>();
+            for(Slice s: c)
+            {
+                if (msg.getFailedSlices().contains(i))
+                    slices.add(s);
+                i++;
+            }
+
+            RecoveryData recoveryData = new RecoveryData(msg.getFilename(), msg.getSequenceNum(), msg.getFailedSlices(), slices);
+            messenger.send(recoveryData, new InetSocketAddress(hostName, msg.getListeningPort()));
+        }
+        catch(IntegrityCheckFailedException ex)
+        {
+            if (handleIntegrityCheckFailure(ex))
+                handleRecoveryDataRequestMsg(msg, hostName);
+            else
+            {
+                LOGGER.log(Level.WARNING, "Unable to fix the chunk");
+            }
+        }
+        catch(IOException ex)
+        {
+            LOGGER.log(Level.WARNING, "Unable to read chunk in response to recovery data request");
         }
     }
 
@@ -233,6 +280,11 @@ public class Server
 
     private void handleTransferRequestMsg(TransferRequest msg) {
         Metadata chunkInfo = serverTable.getChunk(msg.getFilename(), msg.getSequenceNum());
+        if (chunkInfo == null)
+        {
+            LOGGER.log(Level.WARNING, "Chunk found to be absent in response to TransferRequest. Ignoring TransferRequest");
+            return;
+        }
 
         try
         {
@@ -241,7 +293,12 @@ public class Server
         }
         catch(IntegrityCheckFailedException ex)
         {
-            handleIntegrityCheckFailure(ex);
+            if (handleIntegrityCheckFailure(ex))
+                handleTransferRequestMsg(msg);
+            else
+            {
+                LOGGER.log(Level.WARNING, "Unable to fix the chunk");
+            }
         }
         catch(IOException ex)
         {
@@ -251,6 +308,12 @@ public class Server
 
     private void handleReadDataRequest(ReadDataRequest msg, String hostname) {
         Metadata m = serverTable.getChunk(msg.getFilename(), msg.getSeqNum());
+        if (m == null)
+        {
+            LOGGER.log(Level.WARNING, "Chunk found to be absent in response to ReadDataRequest. Ignoring ReadRequest");
+            return;
+        }
+
         try
         {
             Chunk chunk = new Chunk(m.getStoragePath());
@@ -258,7 +321,15 @@ public class Server
         }
         catch(IntegrityCheckFailedException ex)
         {
-            handleIntegrityCheckFailure(ex);
+            if(handleIntegrityCheckFailure(ex))
+            {
+                // Retry
+                handleReadDataRequest(msg, hostname);
+            }
+            else
+            {
+                LOGGER.log(Level.WARNING, "Unable to fix the chunk");
+            }
         }
         catch(IOException ex)
         {
@@ -266,10 +337,12 @@ public class Server
         }
     }
 
-    private void handleIntegrityCheckFailure(IntegrityCheckFailedException ex) {
+    private boolean handleIntegrityCheckFailure(IntegrityCheckFailedException ex) {
         LOGGER.log(Level.INFO, ex.getMessage());
         RecoveryRequest recoveryRequest = new RecoveryRequest(ex.getChunk().getMetadata(), ownAddress.getPort());
+        LOGGER.log(Level.INFO, "Sending recovery request");
         messenger.send(recoveryRequest, controllerAddress);
+        LOGGER.log(Level.INFO, "Waiting for recovery reply");
         MessageReceived ev = messenger.waitForReplyTo(recoveryRequest);
         if (ev == null)
             LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryRequest.getMessageType());
@@ -277,16 +350,21 @@ public class Server
             LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryRequest.getMessageType());
         else
         {
-            handleRecoveryReplyMsg((RecoveryReply) ev.getMessage(), ex.getChunk(), ex.getFailedSlices());
+            if(handleRecoveryReplyMsg((RecoveryReply) ev.getMessage(), ex.getChunk(), ex.getFailedSlices()))
+                return true;
         }
+        return false;
     }
 
     private boolean handleRecoveryReplyMsg(RecoveryReply msg, Chunk chunk, List<Integer> failedSlices) {
+        LOGGER.log(Level.INFO, "Received recovery reply. Replicas are availabe at " + msg.getReplicas());
         for(InetSocketAddress addr: msg.getReplicas())
         {
             if(!addr.equals(ownAddress))
             {
                 RecoveryDataRequest recoveryDataRequest = new RecoveryDataRequest(chunk.getMetadata(), failedSlices, ownAddress.getPort());
+                messenger.send(recoveryDataRequest, addr);
+                LOGGER.log(Level.INFO, "Sent recovery data request to " + addr);
                 MessageReceived ev = messenger.waitForReplyTo(recoveryDataRequest);
                 if (ev == null)
                     LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryDataRequest.getMessageType());
@@ -307,15 +385,20 @@ public class Server
         {
             // Fix the chunk slices
             for(Map.Entry<Integer, Slice> e: msg.getRecoveryData())
+            {
+                LOGGER.log(Level.INFO, "Fixing slice " + e.getKey());
                 chunk.fixSlice(e.getKey(), e.getValue());
+            }
 
+            LOGGER.log(Level.INFO, "Writing fixed chunk");
             // And write to file (overwriting)
             chunk.writeToFile();
+            LOGGER.log(Level.INFO, "Successfully fixed chunk");
             return true;
         }
         catch(IOException ex)
         {
-            LOGGER.log(Level.INFO, "Error while writing the corrected chunk to file");
+            LOGGER.log(Level.INFO, "Error while writing the fixed chunk to file");
             return false;
         }
     }

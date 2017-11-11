@@ -51,7 +51,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
             long timestamp = din.readLong();
             Date ts = new Date(timestamp);
             this.metadata = new Metadata(filename, seqNum, version, ts);
-            System.out.println(this.metadata);
+
             int sliceCount = din.readInt();
             List<Hash> expectedHashes = new ArrayList<>();
             byte[] hash = new byte[hasher.size()];
@@ -132,6 +132,11 @@ public class Chunk implements Externalizable, Iterable<Slice>
         if (index < 0 || index >= sliceList.size())
             throw new IndexOutOfBoundsException("Slice index " + index + " is out of bounds for a chunk with " + sliceList.size() + " slices");
         sliceList.set(index, slice);
+    }
+
+    public int size()
+    {
+        return sliceList.size();
     }
 
     public WriteRequest convertToWriteRequest(int port)
@@ -218,4 +223,5 @@ public class Chunk implements Externalizable, Iterable<Slice>
     {
         return sliceList.iterator();
     }
+
 }
