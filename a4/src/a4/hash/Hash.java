@@ -61,7 +61,9 @@ public class Hash implements Externalizable {
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         int hashLength = in.readInt();
         this.value = new byte[hashLength];
-        in.read(this.value);
+        int bytesRead = 0;
+        while(value.length - bytesRead > 0)
+            bytesRead += in.read(this.value, bytesRead, this.value.length - bytesRead);
     }
 
     public BigInteger asBigInteger()
@@ -69,6 +71,9 @@ public class Hash implements Externalizable {
         return new BigInteger(value);
     }
 
+    public byte[] asBytes() {
+        return Arrays.copyOf(value, value.length);
+    }
     @Override
     public String toString()
     {

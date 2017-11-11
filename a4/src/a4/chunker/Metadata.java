@@ -24,10 +24,15 @@ public class Metadata implements Externalizable
 
     public Metadata(String file, long sequenceNum, int version) throws InvalidPathException
     {
+        this(file, sequenceNum, version, calendar.getTime());
+    }
+
+    public Metadata(String file, long sequenceNum, int version, Date timestamp) throws InvalidPathException
+    {
         this.fileName = Paths.get(file).getFileName();
         this.sequenceNum = sequenceNum;
         this.version = version;
-        updateTimestamp();
+        this.timestamp = timestamp;
     }
 
     public Metadata()
@@ -97,4 +102,11 @@ public class Metadata implements Externalizable
 
         return Paths.get(saveDir.toString(), chunkName);
     }
+
+    @Override
+    public String toString()
+    {
+        return fileName + ", " + sequenceNum + ", " + version + ", " + timestamp;
+    }
+
 }

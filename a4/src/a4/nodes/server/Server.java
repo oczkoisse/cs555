@@ -44,7 +44,7 @@ public class Server
     private final ServerTable serverTable = new ServerTable();
 
     private Messenger messenger;
-    private int minorHearbeatsCount;
+    private int heartbeats;
 
     public Server(int listeningPort, String controllerHost, int controllerPort) throws UnknownHostException
     {
@@ -53,7 +53,7 @@ public class Server
         this.ownAddress = new InetSocketAddress(InetAddress.getLocalHost().getHostName(), listeningPort);
 
         this.controllerAddress = new InetSocketAddress(controllerHost, controllerPort);
-        this.minorHearbeatsCount = 0;
+        this.heartbeats = 0;
     }
 
     public static void printUsage()
@@ -94,12 +94,12 @@ public class Server
     {
         printSummary();
 
-        minorHearbeatsCount++;
+        heartbeats++;
         boolean majorHearbeat = false;
-        if (minorHearbeatsCount == minorHeartbeatsPerMajorHeartbeat)
+        if (heartbeats == minorHeartbeatsPerMajorHeartbeat)
         {
             majorHearbeat = true;
-            minorHearbeatsCount = 0;
+            heartbeats = 0;
         }
 
         LOGGER.log(Level.INFO, "BEAT " + (majorHearbeat ? "(major)" : "(minor)"));

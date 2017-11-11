@@ -6,10 +6,7 @@ import a4.nodes.client.messages.WriteRequest;
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
 
 public class Chunk implements Externalizable, Iterable<Slice>
 {
@@ -42,41 +39,77 @@ public class Chunk implements Externalizable, Iterable<Slice>
         StringBuilder exMessage = new StringBuilder();
         exMessage.append(String.format("%n"));
 
-        int curSlice = 0, sliceCount = 0;
 
         try(FileInputStream fin = new FileInputStream(pathToChunkFile.toString());
             BufferedInputStream bin = new BufferedInputStream(fin);
-            ObjectInputStream oin = new ObjectInputStream(bin)) {
+            DataInputStream din = new DataInputStream(bin)) {
 
-            this.last = oin.readBoolean();
-            this.metadata = (Metadata) oin.readObject();
-            sliceCount = oin.readInt();
+            this.last = din.readBoolean();
+            String filename = din.readUTF();
+            long seqNum = din.readLong();
+            int version = din.readInt();
+            long timestamp = din.readLong();
+            Date ts = new Date(timestamp);
+            this.metadata = new Metadata(filename, seqNum, version, ts);
+            System.out.println(this.metadata);
+            int sliceCount = din.readInt();
+            List<Hash> expectedHashes = new ArrayList<>();
+            byte[] hash = new byte[hasher.size()];
 
+            for(int i = 0; i<sliceCount; i++)
+            {
+                int off = 0;
+                while(off < hash.length) {
+                    int read = din.read(hash, off, hash.length - off);
+                    if (read > 0)
+                        off += read;
+                    else
+                        break;
+                }
+                expectedHashes.add(new Hash(hash));
+            }
+
+            int sliceSizeInBytes = din.readInt();
+            Size sliceSize = new Size(sliceSizeInBytes/1024, Size.Unit.K);
+
+            byte[] sliceBuffer = new byte[sliceSizeInBytes];
             this.sliceList = new ArrayList<>();
-            for (; curSlice < sliceCount; curSlice++) {
-                Hash expectedHash = (Hash) oin.readObject();
-                Slice s = (Slice) oin.readObject();
 
-                Hash calculatedHash = s.calculateHash(hasher);
-                if (!expectedHash.equals(calculatedHash))
+            for (int curSlice=0; curSlice < sliceCount; curSlice++)
+            {
+                int off = 0;
+                while(off < sliceBuffer.length) {
+                    int read = din.read(sliceBuffer, off, sliceBuffer.length - off);
+                    if (read > 0)
+                        off += read;
+                    else
+                        break;
+                }
+
+                if (curSlice == sliceCount - 1 && din.read() != -1)
                 {
-                    exMessage.append(String.format("Hash check failed for slice %d: expected %s, got %s.%n", curSlice, expectedHash, calculatedHash));
+                    exMessage.append(String.format("Integrity check failed for slice %d: found more bytes than expected.%n", curSlice));
                     failedSlices.add(curSlice);
+                    continue;
+                }
+
+                Slice s = null;
+                if(off == sliceBuffer.length)
+                {
+                    s = new Slice(sliceBuffer, sliceSize);
                 }
                 else
+                {
+                    s = new Slice(Arrays.copyOf(sliceBuffer, off), sliceSize);
+                }
+                Hash calculatedHash = s.calculateHash(hasher);
+                if(calculatedHash.equals(expectedHashes.get(curSlice)))
                     this.sliceList.add(s);
-            }
-        }
-        catch(StreamCorruptedException | ClassNotFoundException ex)
-        {
-            if (curSlice == 0 && sliceCount == 0)
-                throw new IOException("Metadata/slice count info is corrupted");
-
-            // Type error could occur while reading an object if metadata or any slice is corrupted
-            while(curSlice < sliceCount)
-            {
-                failedSlices.add(curSlice);
-                curSlice++;
+                else
+                {
+                    exMessage.append(String.format("Integrity check failed for slice %d: expected %s, got %s.%n", curSlice, expectedHashes.get(curSlice), calculatedHash));
+                    failedSlices.add(curSlice);
+                }
             }
         }
 
@@ -131,13 +164,26 @@ public class Chunk implements Externalizable, Iterable<Slice>
     {
         try(FileOutputStream fout = new FileOutputStream(this.metadata.getStoragePath().toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout);
-            ObjectOutputStream oout = new ObjectOutputStream(bout)) {
-            oout.writeBoolean(last);
-            oout.writeObject(metadata);
-            oout.writeInt(sliceList.size());
+            DataOutputStream dout = new DataOutputStream(bout)) {
+            dout.writeBoolean(last);
+            dout.writeUTF(metadata.getFileName().toString());
+            dout.writeLong(metadata.getSequenceNum());
+            dout.writeInt(metadata.getVersion());
+            dout.writeLong(metadata.getTimestamp());
+            dout.writeInt(sliceList.size());
             for (Slice s : sliceList) {
-                oout.writeObject(s.calculateHash(hasher));
-                oout.writeObject(s);
+                Hash h = s.calculateHash(hasher);
+                byte[] bytes = h.asBytes();
+                dout.write(bytes);
+            }
+            boolean sliceSizeWritten = false;
+            for (Slice s : sliceList) {
+                if (!sliceSizeWritten)
+                {
+                    dout.writeInt(s.getSliceSize().getByteCount());
+                    sliceSizeWritten = true;
+                }
+                dout.write(s.getSliceData());
             }
         }
     }
