@@ -270,7 +270,7 @@ public class Server
         }
         catch(IOException ex)
         {
-            LOGGER.log(Level.WARNING, "Unable to read chunk in response to recovery data request");
+            LOGGER.log(Level.WARNING, "Unable to read chunk in response to RecoveryDataRequest");
         }
     }
 

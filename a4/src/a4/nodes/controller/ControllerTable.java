@@ -77,6 +77,14 @@ public class ControllerTable
         }
     }
 
+    public Map<InetSocketAddress, Long> getFreeSpace()
+    {
+        synchronized (nodes)
+        {
+            return Collections.unmodifiableMap(nodes);
+        }
+    }
+
     public boolean hasNode(InetSocketAddress listeningAddress)
     {
         validateAddress(listeningAddress);

@@ -17,6 +17,7 @@ import a4.nodes.server.messages.ServerMessageType;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -50,19 +51,36 @@ public class Controller
         synchronized (controllerTable)
         {
             Set<String> files = controllerTable.getAllFiles();
+            StringBuilder sb = new StringBuilder();
             if (files != null)
-            for(String file: files)
             {
-                Set<Long> seqNums = controllerTable.getAllSequenceNums(file);
-                if (seqNums != null)
+                for(String file: files)
                 {
-                    for(Long l: seqNums)
+                    Set<Long> seqNums = controllerTable.getAllSequenceNums(file);
+                    if (seqNums != null)
                     {
-                        System.out.println(file + ":" + l + " -> " + controllerTable.getAllReplicas(file, l));
+                        for(Long l: seqNums)
+                        {
+                            sb.append(file + ":" + l + " -> ");
+                            for(InetSocketAddress addr: controllerTable.getAllReplicas(file, l))
+                                sb.append(addr.getHostString()+":"+addr.getPort() + ", ");
+                            sb.delete(sb.length() - 2, sb.length());
+                            sb.append("\n");
+                        }
                     }
                 }
             }
-            System.out.println();
+            Map<InetSocketAddress, Long> freeSpace = controllerTable.getFreeSpace();
+            StringBuilder fsb = new StringBuilder();
+            for(Map.Entry<InetSocketAddress, Long> i: freeSpace.entrySet())
+            {
+                InetSocketAddress addr = i.getKey();
+                fsb.append(addr.getHostString()+":"+addr.getPort() + ": " + i.getValue() + "\n");
+            }
+
+            if (sb.length() > 0 || fsb.length() > 0)
+                LOGGER.log(Level.INFO, (sb.length()> 0 ? "Replicas:\n" + sb.toString() + "\n" : "") +
+                        (fsb.length() > 0 ? "Free space:\n" + fsb.toString() + "\n": ""));
         }
     }
 
