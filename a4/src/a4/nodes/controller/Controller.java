@@ -4,7 +4,8 @@ import a4.nodes.client.messages.ClientMessageType;
 import a4.nodes.client.messages.ReadRequest;
 import a4.nodes.client.messages.WriteRequest;
 import a4.nodes.server.messages.RecoveryRequest;
-import a4.transport.Message;
+import a4.transport.Notification;
+import a4.transport.Request;
 import a4.transport.messenger.*;
 import a4.chunker.Metadata;
 import a4.nodes.controller.messages.*;
@@ -115,21 +116,21 @@ public class Controller
     {
         switch (ev.getEventType())
         {
-            case MESSAGE_SENT: {
-                MessageSent msev = (MessageSent) ev;
-                Message msg = msev.getMessage();
-                Enum msgType = msg.getMessageType();
-
-                if (msgType == ControllerMessageType.CHECK_IF_ALIVE)
+            case NOTIFICATION_SENT: {
+                NotificationSent msev = (NotificationSent) ev;
+                if (msev.getNotification().getMessageType() == ControllerMessageType.CHECK_IF_ALIVE)
                 {
                     String dest = msev.getDestination().getHostName();
                     LOGGER.log(Level.INFO, "Looks like the chunk server at " + dest + " died" );
                     controllerTable.removeNode(msev.getDestination());
                     initiateRecovery();
                 }
+                else
+                    LOGGER.log(Level.WARNING, "Failed to send notification: " + msev.getNotification().getMessageType());
                 break;
             }
             default:
+                LOGGER.log(Level.WARNING, "Failed event: " + ev.getEventType());
                 break;
         }
     }
@@ -150,11 +151,11 @@ public class Controller
                     if (exReplica != null)
                     {
                         LOGGER.log(Level.INFO, "Requesting transfer of " + filename + ":" + seq + " to " + exReplica);
-                        messenger.send(new TransferRequest(filename, seq, dest), exReplica);
+                        messenger.send(new Transfer(filename, seq, dest), exReplica);
                     }
                     else
                     {
-                        LOGGER.log(Level.SEVERE, "Completely lost " + filename + ":" + seq);
+                        LOGGER.log(Level.SEVERE, "Failed to recover " + filename + ":" + seq);
                     }
                 }
             }
@@ -168,11 +169,14 @@ public class Controller
             case INTERRUPT_RECEIVED:
                 messenger.stop();
                 break;
-            case MESSAGE_RECEIVED:
-                handleMessageReceivedEvent((MessageReceived) ev);
+            case NOTIFICATION_RECEIVED:
+                handleNotificationReceivedEvent((NotificationReceived) ev);
                 break;
-            case MESSAGE_SENT:
-                handleMessageSentEvent((MessageSent) ev);
+            case REQUEST_RECEIVED:
+                handleRequestReceivedEvent((RequestReceived) ev);
+                break;
+            case NOTIFICATION_SENT:
+                handleNotificationSentEvent((NotificationSent) ev);
                 break;
             case CONNECTION_RECEIVED:
                 handleConnectionReceivedEvent((ConnectionReceived) ev);
@@ -187,76 +191,94 @@ public class Controller
         messenger.receive(sock);
     }
 
-    private void handleMessageSentEvent(MessageSent ev)
+    private void handleNotificationSentEvent(NotificationSent ev)
     {
 
     }
 
-    private void handleMessageReceivedEvent(MessageReceived ev)
+    private void handleRequestReceivedEvent(RequestReceived ev) {
+        Request request = ev.getRequest();
+        Enum msgType = request.getMessageType();
+        if (msgType instanceof ClientMessageType)
+        {
+            switch((ClientMessageType) msgType)
+            {
+                case WRITE_REQUEST:
+                    handleWriteRequestMsg((WriteRequest) request, ev.getSource());
+                    break;
+                case READ_REQUEST:
+                    handleReadRequestMsg((ReadRequest) request, ev.getSource());
+                    break;
+            }
+        }
+        else if (msgType instanceof ServerMessageType)
+        {
+            switch((ServerMessageType) msgType)
+            {
+                case RECOVERY_REQUEST:
+                    handleRecoveryRequestMsg((RecoveryRequest) request, ev.getSource());
+                    break;
+            }
+        }
+    }
+
+    private void handleNotificationReceivedEvent(NotificationReceived ev)
     {
-        Message msg = ev.getMessage();
-        Enum msgType = msg.getMessageType();
+        Notification notification = ev.getNotification();
+        Enum msgType = notification.getMessageType();
 
         if(msgType instanceof ServerMessageType)
         {
             switch((ServerMessageType) msgType)
             {
                 case ALIVE_RESPONSE:
+                    LOGGER.log(Level.FINE, "Chunk server at " + ev.getSource() + " is alive");
                     break;
                 case MAJOR_HEARTBEAT:
-                    handleMajorHeartbeatMsg((MajorHeartbeat) msg);
+                    handleMajorHeartbeatMsg((MajorHeartbeat) notification);
                     break;
                 case MINOR_HEARTBEAT:
-                    handleMinorHeartbeatMsg((MinorHeartbeat) msg);
-                    break;
-                case RECOVERY_REQUEST:
-                    handleRecoveryRequestMsg((RecoveryRequest) msg, ev.getSource().getHostName());
+                    handleMinorHeartbeatMsg((MinorHeartbeat) notification);
                     break;
                 default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
+                    LOGGER.log(Level.WARNING, "Received unknown notification: " + msgType);
                     break;
             }
         }
-        else if (msgType instanceof ClientMessageType)
-        {
-            switch((ClientMessageType) msgType)
-            {
-                case WRITE_REQUEST:
-                    handleWriteRequestMsg((WriteRequest) msg, ev.getSource().getHostName());
-                    break;
-                case READ_REQUEST:
-                    handleReadRequestMsg((ReadRequest) msg, ev.getSource().getHostName());
-                    break;
-                default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
-                    break;
-            }
+        else {
+            LOGGER.log(Level.WARNING, "Received unknown notification: " + msgType);
         }
     }
 
-    private void handleRecoveryRequestMsg(RecoveryRequest msg, String hostname) {
+    private void handleRecoveryRequestMsg(RecoveryRequest msg, Socket sock) {
+        LOGGER.log(Level.INFO, "Received RecoveryRequest for " + msg.getFilename() + ":" + msg.getSequenceNum());
         Set<InetSocketAddress> replica = controllerTable.getAllReplicas(msg.getFilename(), msg.getSequenceNum());
         if (replica != null)
-            messenger.send(new RecoveryReply(msg.getFilename(), msg.getSequenceNum(), new ArrayList<>(replica)), new InetSocketAddress(hostname, msg.getListeningPort()));
+        {
+            LOGGER.log(Level.INFO, "Sending RecoveryReply with replica destinations");
+            messenger.send(new RecoveryReply(msg.getFilename(), msg.getSequenceNum(), new ArrayList<>(replica)), sock);
+        }
+        else
+        {
+            LOGGER.log(Level.INFO, "No other replica destinations known to serve the RecoveryRequest");
+        }
     }
 
-    private void handleReadRequestMsg(ReadRequest msg, String hostname) {
-        InetSocketAddress talkbackAddr = new InetSocketAddress(hostname, msg.getPort());
+    private void handleReadRequestMsg(ReadRequest msg, Socket sock) {
         InetSocketAddress replica = controllerTable.getExistingReplica(msg.getFilename(), msg.getSeqNum());
         if (replica != null)
-            messenger.send(new ReadReply(replica), talkbackAddr);
+            messenger.send(new ReadReply(replica), sock);
         else {
-            messenger.send(new ReadReply(), talkbackAddr);
+            messenger.send(new ReadReply(), sock);
             LOGGER.log(Level.INFO, "Ignoring read request for non-existent file");
         }
     }
 
-    private void handleWriteRequestMsg(WriteRequest msg, String hostname)
+    private void handleWriteRequestMsg(WriteRequest msg, Socket sock)
     {
-        InetSocketAddress talkbackAddr = new InetSocketAddress(hostname, msg.getPort());
         Set<InetSocketAddress> candidates = controllerTable.getCandidates(msg.getFilename(), msg.getSeqNum());
         if (candidates != null && candidates.size() == REPLICATION)
-            messenger.send(new WriteReply(new ArrayList<>(candidates)), talkbackAddr);
+            messenger.send(new WriteReply(new ArrayList<>(candidates)), sock);
         else
             LOGGER.log(Level.INFO, "Ignoring write request");
     }

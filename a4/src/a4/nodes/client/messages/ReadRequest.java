@@ -2,18 +2,18 @@ package a4.nodes.client.messages;
 
 import a4.nodes.controller.messages.ControllerMessageType;
 import a4.transport.Message;
+import a4.transport.Request;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class ReadRequest implements Message<ClientMessageType> {
+public class ReadRequest extends Request<ClientMessageType> {
 
     private String filename;
     private long seqNum;
-    private int port;
 
-    public ReadRequest(String filename, long seqNum, int port)
+    public ReadRequest(String filename, long seqNum)
     {
         if (filename == null)
             throw new NullPointerException("Filename is null");
@@ -22,14 +22,12 @@ public class ReadRequest implements Message<ClientMessageType> {
 
         this.filename = filename;
         this.seqNum = seqNum;
-        this.port = port;
     }
 
     public ReadRequest()
     {
         this.filename = null;
         this.seqNum = -1;
-        this.port = -1;
     }
 
     @Override
@@ -41,14 +39,12 @@ public class ReadRequest implements Message<ClientMessageType> {
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeUTF(filename);
         out.writeLong(seqNum);
-        out.writeInt(port);
     }
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         this.filename = in.readUTF();
         this.seqNum = in.readLong();
-        this.port = in.readInt();
     }
 
     public String getFilename()
@@ -59,16 +55,5 @@ public class ReadRequest implements Message<ClientMessageType> {
     public long getSeqNum()
     {
         return seqNum;
-    }
-
-    public int getPort()
-    {
-        return port;
-    }
-
-    @Override
-    public Enum isRequestFor()
-    {
-        return ControllerMessageType.READ_REPLY;
     }
 }

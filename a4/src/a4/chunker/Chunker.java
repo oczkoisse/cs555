@@ -117,7 +117,7 @@ public class Chunker implements Iterable<Chunk>, AutoCloseable
             }
             catch (IOException ex)
             {
-                // Read failed
+                // Read hasReplica
                 _hasNext = false;
             }
             finally

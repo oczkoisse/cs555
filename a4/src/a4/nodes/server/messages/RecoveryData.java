@@ -1,17 +1,14 @@
 package a4.nodes.server.messages;
 
 import a4.chunker.Slice;
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-public class RecoveryData implements Message<ServerMessageType> {
+public class RecoveryData extends Notification<ServerMessageType> {
 
     private String filename;
     private long sequenceNum;
@@ -33,7 +30,7 @@ public class RecoveryData implements Message<ServerMessageType> {
         if (correctedSlices == null || correctedSlices.size() == 0)
             throw new IllegalArgumentException("Corrected slice list is invalid");
         if (correctedSlices.size() != failedSlices.size())
-            throw new IllegalArgumentException("Size mismtach between failed slices and corrected slices lists");
+            throw new IllegalArgumentException("Size mismtach between hasReplica slices and corrected slices lists");
         if (sequenceNum < 0)
             throw new IllegalArgumentException("Sequence number is negative");
 
@@ -46,7 +43,7 @@ public class RecoveryData implements Message<ServerMessageType> {
         {
             Object result = recoveryData.putIfAbsent(failedSlices.get(i), correctedSlices.get(i));
             if (result != null)
-                throw new IllegalArgumentException("Repeated elements in failed slices list");
+                throw new IllegalArgumentException("Repeated elements in hasReplica slices list");
         }
     }
 
@@ -54,11 +51,6 @@ public class RecoveryData implements Message<ServerMessageType> {
     @Override
     public ServerMessageType getMessageType() {
         return ServerMessageType.RECOVERY_DATA;
-    }
-
-    @Override
-    public Enum isResponseTo() {
-        return ServerMessageType.RECOVERY_DATA_REQUEST;
     }
 
     @Override
@@ -93,7 +85,7 @@ public class RecoveryData implements Message<ServerMessageType> {
 
     public Set<Map.Entry<Integer, Slice>> getRecoveryData()
     {
-        return recoveryData.entrySet();
+        return Collections.unmodifiableSet(recoveryData.entrySet());
     }
 
     public String getFilename()

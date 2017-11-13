@@ -139,11 +139,6 @@ public class Chunk implements Externalizable, Iterable<Slice>
         return sliceList.size();
     }
 
-    public WriteRequest convertToWriteRequest(int port)
-    {
-        return new WriteRequest(this.metadata.getFileName().toString(), this.metadata.getSequenceNum(), port);
-    }
-
     @Override
     public void writeExternal(ObjectOutput out) throws IOException
     {

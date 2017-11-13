@@ -3,17 +3,13 @@ package a4.nodes.server;
 import a4.chunker.Chunk;
 import a4.chunker.IntegrityCheckFailedException;
 import a4.chunker.Slice;
-import a4.nodes.client.messages.ClientMessageType;
-import a4.nodes.client.messages.ReadDataRequest;
-import a4.nodes.client.messages.WriteData;
-import a4.nodes.controller.messages.RecoveryReply;
-import a4.nodes.controller.messages.TransferRequest;
-import a4.transport.Message;
+import a4.nodes.client.messages.*;
+import a4.nodes.controller.messages.*;
+import a4.nodes.server.messages.*;
+
+import a4.transport.*;
 import a4.transport.messenger.*;
 import a4.chunker.Metadata;
-import a4.nodes.controller.messages.CheckIfAlive;
-import a4.nodes.controller.messages.ControllerMessageType;
-import a4.nodes.server.messages.*;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -144,15 +140,36 @@ public class Server
             case INTERRUPT_RECEIVED:
                 messenger.stop();
                 break;
-            case MESSAGE_RECEIVED:
-                handleMessageReceivedEvent((MessageReceived) ev);
+            case REQUEST_RECEIVED:
+                handleRequestReceivedEvent((RequestReceived) ev);
                 break;
-            case MESSAGE_SENT:
-                handleMessageSentEvent((MessageSent) ev);
+            case NOTIFICATION_RECEIVED:
+                handleNotificationReceivedEvent((NotificationReceived) ev);
+                break;
+            case NOTIFICATION_SENT:
+                handleMessageSentEvent((NotificationSent) ev);
                 break;
             case CONNECTION_RECEIVED:
                 handleConnectionReceivedEvent((ConnectionReceived) ev);
                 break;
+        }
+    }
+
+    private void handleRequestReceivedEvent(RequestReceived ev) {
+        Request request = ev.getRequest();
+        Enum msgType = request.getMessageType();
+
+        if (msgType == ClientMessageType.READ_DATA_REQUEST)
+        {
+            handleReadDataRequest((ReadDataRequest) request, ev.getSource());
+        }
+        else if (msgType == ServerMessageType.RECOVERY_DATA_REQUEST)
+        {
+            handleRecoveryDataRequestMsg((RecoveryDataRequest) request, ev.getSource());
+        }
+        else
+        {
+            LOGGER.log(Level.WARNING, "Received unknown request: " + request.getMessageType());
         }
     }
 
@@ -163,77 +180,67 @@ public class Server
         messenger.receive(sock);
     }
 
-    private void handleMessageSentEvent(MessageSent ev)
+    private void handleMessageSentEvent(NotificationSent ev)
     {
+
+
 
     }
 
-    private void handleMessageReceivedEvent(MessageReceived ev)
+    private void handleNotificationReceivedEvent(NotificationReceived ev)
     {
-        Message msg = ev.getMessage();
+        Notification notification = ev.getNotification();
 
-        if (msg.getMessageType() instanceof ControllerMessageType)
+        if (notification.getMessageType() instanceof ControllerMessageType)
         {
-            switch ((ControllerMessageType) msg.getMessageType())
+            switch ((ControllerMessageType) notification.getMessageType())
             {
                 case CHECK_IF_ALIVE:
-                    handleCheckIfAliveMsg((CheckIfAlive) msg);
+                    handleCheckIfAliveMsg((CheckIfAlive) notification);
+                    break;
+                case TRANSFER:
+                    handleTransferMsg((Transfer) notification);
                     break;
                 case MAJOR_HEARTBEAT_REQUEST:
                     this.messenger.send(prepareHeartbeatMessage(true), controllerAddress);
                     break;
-                case READ_REPLY:
-                    break;
-                case RECOVERY_REPLY:
-                    break;
-                case TRANSFER_REQUEST:
-                    handleTransferRequestMsg((TransferRequest) msg);
-                    break;
                 default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
+                    LOGGER.log(Level.WARNING, "Received unknown notification: " + notification.getMessageType());
                     break;
             }
         }
-        else if (msg.getMessageType() instanceof ClientMessageType)
+        else if (notification.getMessageType() instanceof ClientMessageType)
         {
-            switch ((ClientMessageType) msg.getMessageType())
+            switch ((ClientMessageType) notification.getMessageType())
             {
                 case WRITE_DATA:
-                    handleWriteDataMsg((WriteData) msg);
-                    break;
-                case READ_DATA_REQUEST:
-                    handleReadDataRequest((ReadDataRequest) msg, ev.getSource().getHostName());
+                    handleWriteDataMsg((WriteData) notification);
                     break;
                 default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
+                    LOGGER.log(Level.WARNING, "Received unknown notification: " + notification.getMessageType());
                     break;
             }
         }
-        else if (msg.getMessageType() instanceof ServerMessageType)
+        else if (notification.getMessageType() instanceof ServerMessageType)
         {
-            switch((ServerMessageType) msg.getMessageType())
+            switch((ServerMessageType) notification.getMessageType())
             {
                 case TRANSFER_DATA:
-                    handleTransferDataMsg((TransferData) msg);
-                    break;
-                case RECOVERY_DATA_REQUEST:
-                    handleRecoveryDataRequestMsg((RecoveryDataRequest) msg, ev.getSource().getHostName());
-                    break;
-                case RECOVERY_DATA:
+                    handleTransferDataMsg((TransferData) notification);
                     break;
                 default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + ev.getMessage().getMessageType());
+                    LOGGER.log(Level.WARNING, "Received unknown notification: " + notification.getMessageType());
                     break;
             }
         }
     }
 
-    private void handleRecoveryDataRequestMsg(RecoveryDataRequest msg, String hostName) {
-        LOGGER.log(Level.INFO, "Received Recovery Data request from " + hostName + ":" + msg.getListeningPort());
+    private void handleRecoveryDataRequestMsg(RecoveryDataRequest msg, Socket sock) {
+        LOGGER.log(Level.INFO, "Received RecoveryDataRequest");
         Metadata m = serverTable.getChunk(msg.getFilename(), msg.getSequenceNum());
         if (m == null)
         {
-            LOGGER.log(Level.WARNING, "Chunk found to be missing in response to recovery data request");
+            LOGGER.log(Level.WARNING, "Chunk found to be missing in response to RecoveryDataRequest");
             return;
         }
 
@@ -250,12 +257,12 @@ public class Server
             }
 
             RecoveryData recoveryData = new RecoveryData(msg.getFilename(), msg.getSequenceNum(), msg.getFailedSlices(), slices);
-            messenger.send(recoveryData, new InetSocketAddress(hostName, msg.getListeningPort()));
+            messenger.send(recoveryData, sock);
         }
         catch(IntegrityCheckFailedException ex)
         {
             if (handleIntegrityCheckFailure(ex))
-                handleRecoveryDataRequestMsg(msg, hostName);
+                handleRecoveryDataRequestMsg(msg, sock);
             else
             {
                 LOGGER.log(Level.WARNING, "Unable to fix the chunk");
@@ -278,11 +285,11 @@ public class Server
         }
     }
 
-    private void handleTransferRequestMsg(TransferRequest msg) {
+    private void handleTransferMsg(Transfer msg) {
         Metadata chunkInfo = serverTable.getChunk(msg.getFilename(), msg.getSequenceNum());
         if (chunkInfo == null)
         {
-            LOGGER.log(Level.WARNING, "Chunk found to be absent in response to TransferRequest. Ignoring TransferRequest");
+            LOGGER.log(Level.WARNING, "Chunk found to be absent in response to Transfer. Ignoring Transfer");
             return;
         }
 
@@ -294,7 +301,7 @@ public class Server
         catch(IntegrityCheckFailedException ex)
         {
             if (handleIntegrityCheckFailure(ex))
-                handleTransferRequestMsg(msg);
+                handleTransferMsg(msg);
             else
             {
                 LOGGER.log(Level.WARNING, "Unable to fix the chunk");
@@ -306,7 +313,7 @@ public class Server
         }
     }
 
-    private void handleReadDataRequest(ReadDataRequest msg, String hostname) {
+    private void handleReadDataRequest(ReadDataRequest msg, Socket sock) {
         Metadata m = serverTable.getChunk(msg.getFilename(), msg.getSeqNum());
         if (m == null)
         {
@@ -317,14 +324,14 @@ public class Server
         try
         {
             Chunk chunk = new Chunk(m.getStoragePath());
-            messenger.send(new ReadData(chunk), new InetSocketAddress(hostname, msg.getPort()));
+            messenger.send(new ReadData(chunk), sock);
         }
         catch(IntegrityCheckFailedException ex)
         {
             if(handleIntegrityCheckFailure(ex))
             {
                 // Retry
-                handleReadDataRequest(msg, hostname);
+                handleReadDataRequest(msg, sock);
             }
             else
             {
@@ -337,59 +344,58 @@ public class Server
         }
     }
 
-    private boolean handleIntegrityCheckFailure(IntegrityCheckFailedException ex) {
-        LOGGER.log(Level.INFO, ex.getMessage());
-        RecoveryRequest recoveryRequest = new RecoveryRequest(ex.getChunk().getMetadata(), ownAddress.getPort());
+    private boolean handleIntegrityCheckFailure(IntegrityCheckFailedException except) {
+        LOGGER.log(Level.INFO, except.getMessage());
+        RecoveryRequest recoveryRequest = new RecoveryRequest(except.getChunk().getMetadata());
         LOGGER.log(Level.INFO, "Sending recovery request");
-        messenger.send(recoveryRequest, controllerAddress);
-        LOGGER.log(Level.INFO, "Waiting for recovery reply");
-        MessageReceived ev = messenger.waitForReplyTo(recoveryRequest);
-        if (ev == null)
-            LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryRequest.getMessageType());
-        else if(ev.causedException())
-            LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryRequest.getMessageType());
-        else
+        try
         {
-            if(handleRecoveryReplyMsg((RecoveryReply) ev.getMessage(), ex.getChunk(), ex.getFailedSlices()))
+            Notification notification = Messenger.request(recoveryRequest, controllerAddress);
+            if(handleRecoveryReplyMsg((RecoveryReply) notification, except.getChunk(), except.getFailedSlices()))
                 return true;
+        }
+        catch(SenderException | ReceiverException ex)
+        {
+            LOGGER.log(Level.WARNING, "Unable to receive reply from Controller");
         }
         return false;
     }
 
     private boolean handleRecoveryReplyMsg(RecoveryReply msg, Chunk chunk, List<Integer> failedSlices) {
-        LOGGER.log(Level.INFO, "Received recovery reply. Replicas are availabe at " + msg.getReplicas());
+        LOGGER.log(Level.INFO, "Received recovery reply. Replicas are available at " + msg.getReplicas());
         for(InetSocketAddress addr: msg.getReplicas())
         {
             if(!addr.equals(ownAddress))
             {
-                RecoveryDataRequest recoveryDataRequest = new RecoveryDataRequest(chunk.getMetadata(), failedSlices, ownAddress.getPort());
-                messenger.send(recoveryDataRequest, addr);
-                LOGGER.log(Level.INFO, "Sent recovery data request to " + addr);
-                MessageReceived ev = messenger.waitForReplyTo(recoveryDataRequest);
-                if (ev == null)
-                    LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + recoveryDataRequest.getMessageType());
-                else if(ev.causedException())
-                    LOGGER.log(Level.WARNING, "Exception while waiting for response to " + recoveryDataRequest.getMessageType());
-                else
-                {
-                    if(handleRecoveryDataMsg((RecoveryData) ev.getMessage(), chunk))
+                RecoveryDataRequest recoveryDataRequest = new RecoveryDataRequest(chunk.getMetadata(), failedSlices);
+
+                try{
+                    LOGGER.log(Level.INFO, "Sending recovery data request to " + addr);
+                    Notification notification = Messenger.request(recoveryDataRequest, addr);
+
+                    if(handleRecoveryDataMsg((RecoveryData) notification, chunk))
                         return true;
+                }
+                catch (SenderException | ReceiverException ex)
+                {
+                    LOGGER.log(Level.WARNING, "Looks like chunk server is unavailable for servicing RecoveryDataRequest");
                 }
             }
         }
         return false;
     }
 
-    private boolean handleRecoveryDataMsg(RecoveryData msg, Chunk chunk) {
+    private boolean handleRecoveryDataMsg(RecoveryData msg, Chunk chunk)
+    {
+        // Fix the chunk slices
+        for(Map.Entry<Integer, Slice> e: msg.getRecoveryData())
+        {
+            LOGGER.log(Level.INFO, "Fixing slice " + e.getKey());
+            chunk.fixSlice(e.getKey(), e.getValue());
+        }
+
         try
         {
-            // Fix the chunk slices
-            for(Map.Entry<Integer, Slice> e: msg.getRecoveryData())
-            {
-                LOGGER.log(Level.INFO, "Fixing slice " + e.getKey());
-                chunk.fixSlice(e.getKey(), e.getValue());
-            }
-
             LOGGER.log(Level.INFO, "Writing fixed chunk");
             // And write to file (overwriting)
             chunk.writeToFile();
@@ -432,9 +438,9 @@ public class Server
     {
         switch (ev.getEventType())
         {
-            case MESSAGE_SENT: {
-                MessageSent msev = (MessageSent) ev;
-                Message msg = msev.getMessage();
+            case NOTIFICATION_SENT: {
+                NotificationSent msev = (NotificationSent) ev;
+                Message msg = msev.getNotification();
                 Enum msgType = msg.getMessageType();
 
                 if (msgType == ServerMessageType.MINOR_HEARTBEAT || msgType == ServerMessageType.MAJOR_HEARTBEAT)

@@ -2,13 +2,13 @@ package a4.nodes.server.messages;
 
 
 import a4.chunker.Chunk;
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class TransferData implements Message<ServerMessageType> {
+public class TransferData extends Notification<ServerMessageType> {
 
     private Chunk chunk;
 

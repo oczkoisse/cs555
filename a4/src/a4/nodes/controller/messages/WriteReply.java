@@ -1,7 +1,6 @@
 package a4.nodes.controller.messages;
 
-import a4.nodes.client.messages.ClientMessageType;
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -11,7 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class WriteReply implements Message<ControllerMessageType> {
+public class WriteReply extends Notification<ControllerMessageType> {
 
     private List<InetSocketAddress> nodesToWriteTo;
 
@@ -57,11 +56,5 @@ public class WriteReply implements Message<ControllerMessageType> {
     public List<InetSocketAddress> getNodesToWriteTo()
     {
         return Collections.unmodifiableList(nodesToWriteTo);
-    }
-
-    @Override
-    public Enum isResponseTo()
-    {
-        return ClientMessageType.WRITE_REQUEST;
     }
 }

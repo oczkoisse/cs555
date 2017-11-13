@@ -1,28 +1,32 @@
 package a4.nodes.controller.messages;
 
-
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.net.InetSocketAddress;
 
-public class TransferRequest implements Message<ControllerMessageType> {
+public class Transfer extends Notification<ControllerMessageType> {
+
     private String filename;
     private long sequenceNum;
     private InetSocketAddress destination;
 
-    public TransferRequest(String filename, long seqNum, InetSocketAddress destination)
+    public Transfer(String filename, long seqNum, InetSocketAddress destination)
     {
-        if (filename == null || seqNum < 0 || destination == null)
-            throw new IllegalArgumentException("Invalid arguments passed to TransferRequest");
+        if (filename == null)
+            throw new NullPointerException("Filename is null");
+        if (seqNum < 0)
+            throw new IllegalArgumentException("Sequence number is negative");
+        if (destination == null)
+            throw new NullPointerException("Destination is null");
         this.filename = filename;
         this.sequenceNum = seqNum;
         this.destination = destination;
     }
 
-    public TransferRequest()
+    public Transfer()
     {
         this.filename = null;
         this.sequenceNum = -1;
@@ -31,7 +35,7 @@ public class TransferRequest implements Message<ControllerMessageType> {
 
     @Override
     public ControllerMessageType getMessageType() {
-        return ControllerMessageType.TRANSFER_REQUEST;
+        return ControllerMessageType.TRANSFER;
     }
 
     @Override

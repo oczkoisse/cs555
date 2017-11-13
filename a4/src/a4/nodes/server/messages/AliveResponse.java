@@ -1,12 +1,12 @@
 package a4.nodes.server.messages;
 
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class AliveResponse implements Message<ServerMessageType>
+public class AliveResponse extends Notification<ServerMessageType>
 {
     public AliveResponse()
     {

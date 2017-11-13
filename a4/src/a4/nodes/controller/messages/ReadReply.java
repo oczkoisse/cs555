@@ -1,21 +1,20 @@
 package a4.nodes.controller.messages;
 
-import a4.nodes.client.messages.ClientMessageType;
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.net.InetSocketAddress;
 
-public class ReadReply implements Message<ControllerMessageType> {
+public class ReadReply extends Notification<ControllerMessageType> {
     private InetSocketAddress replica;
-    private boolean failed;
+    private boolean hasReplica;
 
     public ReadReply()
     {
         this.replica = null;
-        this.failed = true;
+        this.hasReplica = false;
     }
 
     public ReadReply(InetSocketAddress replica)
@@ -23,7 +22,7 @@ public class ReadReply implements Message<ControllerMessageType> {
         if (replica == null)
             throw new NullPointerException("Replica is null");
         this.replica = replica;
-        this.failed = false;
+        this.hasReplica = true;
     }
 
     @Override
@@ -33,8 +32,8 @@ public class ReadReply implements Message<ControllerMessageType> {
 
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
-        out.writeBoolean(failed);
-        if(!failed)
+        out.writeBoolean(hasReplica);
+        if(hasReplica)
         {
             out.writeObject(replica);
         }
@@ -42,8 +41,8 @@ public class ReadReply implements Message<ControllerMessageType> {
 
     @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
-        this.failed = in.readBoolean();
-        if (!this.failed)
+        this.hasReplica = in.readBoolean();
+        if (this.hasReplica)
         {
             this.replica = (InetSocketAddress) in.readObject();
         }
@@ -53,11 +52,5 @@ public class ReadReply implements Message<ControllerMessageType> {
         return replica;
     }
 
-    public boolean isFailed() { return failed; }
-
-    @Override
-    public Enum isResponseTo()
-    {
-        return ClientMessageType.READ_REQUEST;
-    }
+    public boolean hasReplica() { return hasReplica; }
 }

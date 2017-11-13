@@ -110,7 +110,7 @@ public class ControllerTable
         return added;
     }
 
-    // For overwriting
+    // For recovery
     public Set<InetSocketAddress> getAllReplicas(String filename, long sequenceNum)
     {
         validateFileName(filename);

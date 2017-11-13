@@ -18,16 +18,17 @@ public final class Receiver
      * receives the message, and closes the connection
      * @param source {@code InetSocketAddress} representing a source from which to receive the message
      * @return {@code Message} denoting the received message
-     * @throws IOException if unable to open a socket connection to source, or
-     * if there is an I/O error while receiving the message
-     * @throws ClassNotFoundException if unable to resolve the received message as a valid {@code Message} instance
      */
-    public  static Message receive(InetSocketAddress source) throws IOException, ClassNotFoundException
+    public  static Notification receive(InetSocketAddress source) throws ReceiverException
     {
         try (Socket sock = new Socket(source.getAddress(), source.getPort());
              ObjectInputStream ins = new ObjectInputStream(sock.getInputStream()))
         {
-            return (Message) ins.readObject();
+            return (Notification) ins.readObject();
+        }
+        catch(IOException | ClassNotFoundException ex)
+        {
+            throw new ReceiverException(ex);
         }
     }
 
@@ -35,15 +36,31 @@ public final class Receiver
      * Receive a message from the connection represented by the {@code Socket} instance, and closes the connection
      * @param sock {@code Socket} representing a source from which to receive the message
      * @return {@code Message} denoting the received message
-     * @throws IOException if there is an I/O error while receiving the message
-     * @throws ClassNotFoundException if unable to resolve the received message as a valid {@code Message} instance
      */
-    public static Message receive(Socket sock) throws IOException, ClassNotFoundException
+    public static Notification receive(Socket sock) throws ReceiverException
     {
         try (Socket s = sock;
              ObjectInputStream ins = new ObjectInputStream(s.getInputStream()))
         {
-            return (Message) ins.readObject();
+            return (Notification) ins.readObject();
+        }
+        catch(IOException | ClassNotFoundException ex)
+        {
+            throw new ReceiverException(ex);
         }
     }
+
+    public static Message receiveAndThen(Socket sock) throws ReceiverException
+    {
+        try
+        {
+            ObjectInputStream ins = new ObjectInputStream(sock.getInputStream());
+            return (Message) ins.readObject();
+        }
+        catch(IOException | ClassNotFoundException ex)
+        {
+            throw new ReceiverException(ex);
+        }
+    }
+
 }

@@ -1,7 +1,7 @@
 package a4.nodes.server.messages;
 
-import a4.transport.Message;
 import a4.chunker.Metadata;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
@@ -13,7 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public abstract class Heartbeat implements Message<ServerMessageType>
+public abstract class Heartbeat extends Notification<ServerMessageType>
 {
     private static final Path tempDir = Paths.get(System.getProperty("java.io.tmpdir"));
 

@@ -22,24 +22,72 @@ public final class Sender
      * @throws IOException if unable to open a socket connection to destination, or
      * if there is an I/O error while sending the message
      */
-	public static void send(Message msg, InetSocketAddress destination) throws IOException
+	public static void send(Notification msg, InetSocketAddress destination) throws SenderException
 	{
 		try (Socket sock = new Socket(destination.getAddress(), destination.getPort());
 			 ObjectOutputStream outs = new ObjectOutputStream(sock.getOutputStream()))
 		{
 			outs.writeObject(msg);
 		}
+		catch(IOException ex)
+		{
+			throw new SenderException(ex);
+		}
+	}
+
+	/**
+	 * Opens a connection to the specified {@code destination} specified as an IP address (host:port),
+	 * sends the message, and closes the connection
+	 * @param destination {@code Socket} representing the destination to which the message should be sent
+	 * @throws IOException if unable to open a socket connection to destination, or
+	 * if there is an I/O error while sending the message
+	 */
+	public static void send(Notification msg, Socket destination) throws SenderException
+	{
+		try (Socket sock = destination;
+			 ObjectOutputStream outs = new ObjectOutputStream(sock.getOutputStream()))
+		{
+			outs.writeObject(msg);
+		}
+		catch(IOException ex)
+		{
+			throw new SenderException(ex);
+		}
+	}
+
+	public static Socket sendAndThen(Request request, InetSocketAddress destination) throws SenderException
+	{
+		try {
+			Socket sock = new Socket(destination.getAddress(), destination.getPort());
+			ObjectOutputStream outs = new ObjectOutputStream(sock.getOutputStream());
+			outs.writeObject(request);
+			return sock;
+		}
+		catch(IOException ex)
+		{
+			throw new SenderException(ex);
+		}
+	}
+
+	public static Socket sendAndThen(Request request, Socket sock) throws SenderException
+	{
+		try {
+			ObjectOutputStream outs = new ObjectOutputStream(sock.getOutputStream());
+			outs.writeObject(request);
+			return sock;
+		}
+		catch(IOException ex)
+		{
+			throw new SenderException(ex);
+		}
 	}
 
     /**
-     * Broadcasts a one-time {@code Message} to all the IP Addresses specified in {@code destinations}.
-     * Uses {@link #send(Message, InetSocketAddress)} to send these messages.
+     * Broadcasts a one-time {@code Notification} to all the IP Addresses specified in {@code destinations}.
      * @param destinations A list of {@code InetSocketAddress} representing the destinations to which the message
      *                    should be sent
-     * @throws IOException if unable to open a socket connection to any of the destinations, or
-     * if there is an I/O error while sending the message to any of them
      */
-	public static void broadcast(Message msg, List<InetSocketAddress> destinations) throws IOException
+	public static void broadcast(Notification msg, List<InetSocketAddress> destinations) throws SenderException
 	{
 		for(InetSocketAddress destination: destinations)
 		{

@@ -1,16 +1,16 @@
 package a4.nodes.controller.messages;
 
-import a4.nodes.server.messages.ServerMessageType;
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
-public class RecoveryReply implements Message<ControllerMessageType> {
+public class RecoveryReply extends Notification<ControllerMessageType> {
     private List<InetSocketAddress> replicas;
     private String filename;
     private long sequenceNum;
@@ -71,7 +71,7 @@ public class RecoveryReply implements Message<ControllerMessageType> {
     }
 
     public List<InetSocketAddress> getReplicas() {
-        return this.replicas;
+        return Collections.unmodifiableList(this.replicas);
     }
 
     public String getFileName()
@@ -82,12 +82,5 @@ public class RecoveryReply implements Message<ControllerMessageType> {
     public long getSequenceNum()
     {
         return this.sequenceNum;
-    }
-
-
-    @Override
-    public Enum isResponseTo()
-    {
-        return ServerMessageType.RECOVERY_REQUEST;
     }
 }

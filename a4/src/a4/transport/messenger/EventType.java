@@ -6,7 +6,8 @@ package a4.transport.messenger;
 public enum EventType
 {
     CONNECTION_RECEIVED,
-    MESSAGE_SENT,
-    MESSAGE_RECEIVED,
+    NOTIFICATION_SENT,
+    NOTIFICATION_RECEIVED,
+    REQUEST_RECEIVED,
     INTERRUPT_RECEIVED
 }

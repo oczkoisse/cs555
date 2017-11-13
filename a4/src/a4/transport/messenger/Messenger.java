@@ -1,15 +1,10 @@
 package a4.transport.messenger;
 
-import a4.transport.Listener;
-import a4.transport.Message;
-import a4.transport.Receiver;
-import a4.transport.Sender;
+import a4.transport.*;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -31,9 +26,7 @@ public class Messenger
     // Listener instance for actually doing the listening for new connections
     private Listener listener;
 
-    private boolean listening;
-
-    private final Map<Enum, MessageReceived> locks = new HashMap<>();
+    private volatile boolean listening;
 
     /**
      * Creates a new instance for listening on port as given by {@code listeningPort} with
@@ -64,19 +57,40 @@ public class Messenger
     }
 
     /**
-     * Synchronously sends a message and wraps it into an {@link MessageSent} event for use by thread pool
-     * @param msg Message to be sent
+     * Synchronously sends a @{@link Notification} and wraps it into an {@link NotificationSent} event for use by thread pool
+     * @param msg Notification to be sent
      * @param destination IP Address of the destination
-     * @return {@link MessageSent} event that may wrap an {@link IOException} on failure
+     * @return {@link NotificationSent} event that may wrap an {@link SenderException} on failure
      */
-    private static MessageSent trySend(Message msg, InetSocketAddress destination)
+    private static NotificationSent trySend(Notification msg, InetSocketAddress destination)
     {
-        MessageSent ev = new MessageSent(msg, destination);
+        NotificationSent ev = new NotificationSent(msg, destination);
         try
         {
             Sender.send(msg, destination);
         }
-        catch (IOException ex)
+        catch (SenderException ex)
+        {
+            ev.setException(ex);
+        }
+        return ev;
+    }
+
+    /**
+     * Synchronously sends a @{@link Notification} and wraps it into an {@link NotificationSent} event for use by thread pool
+     * @param msg Notification to be sent
+     * @param destination Socket to the destination
+     * @return {@link NotificationSent} event that may wrap an {@link SenderException} on failure
+     */
+    private static NotificationSent trySend(Notification msg, Socket destination)
+    {
+        NotificationSent ev = new NotificationSent(msg,
+                new InetSocketAddress(destination.getInetAddress(), destination.getPort()));
+        try
+        {
+            Sender.send(msg, destination);
+        }
+        catch (SenderException ex)
         {
             ev.setException(ex);
         }
@@ -85,85 +99,33 @@ public class Messenger
 
 
     /**
-     * Synchronously receives a message and wraps it into an {@link MessageReceived} event for use by thread pool
-     * @param source IP Address of the source
-     * @return {@link MessageReceived} event that may wrap an {@link IOException} or {@link ClassNotFoundException} on failure
-     */
-    private MessageReceived tryReceive(InetSocketAddress source)
-    {
-        MessageReceived ev = new MessageReceived(source);
-        try
-        {
-            Message msg = Receiver.receive(source);
-            ev.setMessage(msg);
-
-            if (msg.isResponseTo() != null)
-            {
-                synchronized (locks)
-                {
-                    if (locks.containsKey(msg.isResponseTo()))
-                    {
-                        locks.put(msg.isResponseTo(), ev);
-                        locks.notify();
-                    }
-                }
-            }
-        }
-        catch (IOException | ClassNotFoundException e)
-        {
-            ev.setException(e);
-            // Tell all the waiting threads to stop waiting
-            synchronized (locks)
-            {
-                for(Enum en: locks.keySet())
-                {
-                    locks.put(en, ev);
-                    locks.notify();
-                }
-            }
-        }
-        return ev;
-    }
-
-    /**
-     * Synchronously receives a message and wraps it into an {@link MessageReceived} event for use by thread pool
+     * Synchronously receives a message and wraps it into an {@link NotificationReceived} event for use by thread pool
      * @param sock Connection to the source
-     * @return {@link MessageReceived} event that may wrap an {@link IOException} or {@link ClassNotFoundException} on failure
+     * @return {@link NotificationReceived} event that may wrap an {@link ReceiverException} on failure
      */
     private MessageReceived tryReceive(Socket sock)
     {
-        MessageReceived ev = new MessageReceived(sock);
+        NotificationReceived nev = new NotificationReceived(sock);
         try
         {
-            Message msg = Receiver.receive(sock);
-            ev.setMessage(msg);
-
-            if (msg.isResponseTo() != null)
+            Message msg = Receiver.receiveAndThen(sock);
+            if (msg.isSynchronous())
             {
-                synchronized (locks)
-                {
-                    if (locks.containsKey(msg.isResponseTo()))
-                    {
-                        locks.put(msg.isResponseTo(), ev);
-                        locks.notify();
-                    }
-                }
+                RequestReceived rev = new RequestReceived(sock);
+                rev.setRequest((Request) msg);
+                return rev;
+            }
+            else
+            {
+                nev.setNotification((Notification) msg);
+                return nev;
             }
         }
-        catch (IOException | ClassNotFoundException e)
+        catch (ReceiverException ex)
         {
-            ev.setException(e);
-            // Tell all the waiting threads to stop waiting
-            synchronized (locks)
-            {
-                for(Enum en: locks.keySet())
-                {
-                    locks.put(en, ev);
-                    locks.notify();
-                }
-            }
+            nev.setException(ex);
         }
-        return ev;
+        return nev;
     }
 
     /**
@@ -185,37 +147,62 @@ public class Messenger
     }
 
     /**
-     * Asynchronously request for sending a message to destination. This will generate a {@link MessageSent}
+     * Asynchronously request for sending a message to destination. This will generate a {@link NotificationSent}
      * in the future, whether successful or not.
-     * @param msg Message to be sent
+     * @param msg Notification to be sent
      * @param destination IP Address of the destination
      */
-    public void send(Message msg, InetSocketAddress destination)
+    public void send(Notification msg, InetSocketAddress destination)
     {
-        if (msg != null)
-            this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
-        else
-            LOGGER.log(Level.WARNING, "Ignored a request to send a null or NULL_PEER message");
+        if (msg == null)
+            throw new NullPointerException("Notification to be sent cannot be null");
+        if (destination == null)
+            throw new NullPointerException("Destination cannot be null");
+
+        this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
+    }
+
+    public void send(Notification msg, Socket destination)
+    {
+        if (msg == null)
+            throw new NullPointerException("Notification to be sent cannot be null");
+        if (destination == null)
+            throw new NullPointerException("Destination cannot be null");
+
+        this.executorCompletionService.submit(() -> Messenger.trySend(msg, destination));
     }
 
     /**
-     * Asynchronous request for receiving a message from source. This will generate a {@link MessageReceived}
-     * event in the future, whether successful or not.
-     * @param source IP Address of the source
-     */
-    public void receive(InetSocketAddress source)
-    {
-        this.executorCompletionService.submit(() -> this.tryReceive(source));
-    }
-
-    /**
-     * Asynchronous request for receiving a message from source. This will generate a {@link MessageReceived}
+     * Asynchronous request for receiving a message from source. This will generate a {@link NotificationReceived}
      * event in the future, whether successful or not.
      * @param sock Socket representing the connection to the source
      */
     public void receive(Socket sock)
     {
+        if (sock == null)
+            throw new NullPointerException("Socket to receive message from cannot be null");
+
         this.executorCompletionService.submit(() -> this.tryReceive(sock));
+    }
+
+    public static Notification request(Request request, Socket sock) throws SenderException, ReceiverException
+    {
+        if (request == null)
+            throw new NullPointerException("Request is null");
+        if (sock == null)
+            throw new NullPointerException("Socket to receive message from cannot be null");
+        Sender.sendAndThen(request, sock);
+        return Receiver.receive(sock);
+    }
+
+    public static Notification request(Request request, InetSocketAddress destination) throws SenderException, ReceiverException
+    {
+        if (request == null)
+            throw new NullPointerException("Request is null");
+        if (destination == null)
+            throw new NullPointerException("Destination to receive message from cannot be null");
+        Socket sock = Sender.sendAndThen(request, destination);
+        return Receiver.receive(sock);
     }
 
     /**
@@ -284,6 +271,7 @@ public class Messenger
         {
             try{
                 listener.close();
+                listening = false;
             }
             catch(IOException e)
             {
@@ -305,47 +293,4 @@ public class Messenger
         stop();
         return executorService.awaitTermination(secondsToWait, TimeUnit.SECONDS);
     }
-
-
-    // Returns null if interrupted, or due to timeout
-    public MessageReceived waitForReplyTo(Message msg, int secondsToWait)
-    {
-        MessageReceived ev = null;
-        Enum msgType = msg.getMessageType();
-        // If message is a request for a reply
-        if (msg.isRequestFor() != null)
-        {
-            synchronized (locks)
-            {
-                // Create a sentinel, which will be null until a notify sets it to a received event with or without exception
-                locks.put(msgType, null);
-                long startTime = System.nanoTime();
-                try {
-                    while(locks.get(msgType) == null)
-                    {
-                        if (secondsToWait == 0)
-                            locks.wait();
-                        else
-                        {
-                            locks.wait(secondsToWait * 1000);
-                            long elapsed = System.nanoTime() - startTime;
-                            if (elapsed > secondsToWait * 1000000000L)
-                                break;
-                        }
-                    }
-                }
-                catch(InterruptedException ex) {}
-
-                ev = locks.get(msgType);
-                locks.remove(msgType);
-            }
-        }
-        return ev;
-    }
-
-    public MessageReceived waitForReplyTo(Message msg)
-    {
-        return waitForReplyTo(msg, 0);
-    }
-
 }

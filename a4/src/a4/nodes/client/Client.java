@@ -7,11 +7,12 @@ import a4.nodes.client.messages.ReadDataRequest;
 import a4.nodes.client.messages.ReadRequest;
 import a4.nodes.client.messages.WriteData;
 import a4.nodes.client.messages.WriteRequest;
-import a4.nodes.controller.messages.ControllerMessageType;
 import a4.nodes.controller.messages.ReadReply;
 import a4.nodes.controller.messages.WriteReply;
 import a4.nodes.server.messages.ReadData;
-import a4.transport.Message;
+import a4.transport.Notification;
+import a4.transport.ReceiverException;
+import a4.transport.SenderException;
 import a4.transport.messenger.*;
 
 import java.io.*;
@@ -81,11 +82,14 @@ public class Client implements Runnable {
             case INTERRUPT_RECEIVED:
                 messenger.stop();
                 break;
-            case MESSAGE_RECEIVED:
-                handleMessageReceivedEvent((MessageReceived) ev);
+            case NOTIFICATION_RECEIVED:
+                handleNotificationReceivedEvent((NotificationReceived) ev);
                 break;
-            case MESSAGE_SENT:
-                handleMessageSentEvent((MessageSent) ev);
+            case NOTIFICATION_SENT:
+                handleNotificationSentEvent((NotificationSent) ev);
+                break;
+            case REQUEST_RECEIVED:
+                handleRequestReceivedEvent((RequestReceived) ev);
                 break;
             case CONNECTION_RECEIVED:
                 handleConnectionReceivedEvent((ConnectionReceived) ev);
@@ -99,30 +103,16 @@ public class Client implements Runnable {
         messenger.receive(sock);
     }
 
-    private void handleMessageSentEvent(MessageSent ev) {
+    private void handleNotificationSentEvent(NotificationSent ev) {
 
     }
 
-    private void handleMessageReceivedEvent(MessageReceived ev) {
-        Message msg = ev.getMessage();
-        Enum msgType = msg.getMessageType();
+    private void handleNotificationReceivedEvent(NotificationReceived ev) {
+        LOGGER.log(Level.WARNING, "Received unknown notification: " + ev.getNotification().getMessageType());
+    }
 
-        if(msgType instanceof ControllerMessageType)
-        {
-            switch((ControllerMessageType) msgType)
-            {
-                case WRITE_REPLY:
-                    // Ignore this since we are processing write replies synchronously
-                    break;
-                case READ_REPLY:
-                    // Ignore this since we are processing read replies synchronously
-                    break;
-                default:
-                    LOGGER.log(Level.WARNING, "Received unknown message: " + msgType);
-                    break;
-            }
-        }
-
+    private void handleRequestReceivedEvent(RequestReceived ev) {
+        LOGGER.log(Level.WARNING, "Received unknown request: " + ev.getRequest().getMessageType());
     }
 
     private void handleWriteReplyMsg(WriteReply msg, Chunk chunk)
@@ -143,17 +133,17 @@ public class Client implements Runnable {
             {
                 for(Chunk c: chunker)
                 {
-                    MessageReceived ev = null;
                     LOGGER.log(Level.INFO, String.format("Writing chunk %s:%d", c.getMetadata().getFileName(), c.getMetadata().getSequenceNum()));
-                    WriteRequest writeRequest = c.convertToWriteRequest(listeningPort);
-                    messenger.send(writeRequest, controllerAddress);
-                    ev = messenger.waitForReplyTo(writeRequest);
-                    if (ev == null)
-                        LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + writeRequest.getMessageType());
-                    else if (ev.causedException())
-                        LOGGER.log(Level.WARNING, "Exception while waiting for response to " + writeRequest.getMessageType());
-                    else
-                        handleWriteReplyMsg((WriteReply) ev.getMessage(), c);
+                    WriteRequest writeRequest = new WriteRequest(c.getMetadata().getFileName().toString(), c.getMetadata().getSequenceNum());
+                    try
+                    {
+                        Notification n = Messenger.request(writeRequest, controllerAddress);
+                        handleWriteReplyMsg((WriteReply) n, c);
+                    }
+                    catch(SenderException | ReceiverException ex)
+                    {
+                        LOGGER.log(Level.WARNING, ex.getCause().getMessage());
+                    }
                 }
             }
             catch(IOException ex)
@@ -171,60 +161,50 @@ public class Client implements Runnable {
         try(FileOutputStream fout = new FileOutputStream(Paths.get(outDir.toString(), fileName).toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout))
         {
-            boolean last = false;
+            boolean isLast = false;
             do {
-                MessageReceived ev = null;
                 LOGGER.log(Level.INFO, String.format("Reading chunk %s:%d", fileName, i));
-                ReadRequest readRequest = new ReadRequest(fileName, i, listeningPort);
-                messenger.send(readRequest, controllerAddress);
-                ev = messenger.waitForReplyTo(readRequest);
-                if (ev == null)
-                    LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + readRequest.getMessageType());
-                else if(ev.causedException())
-                    LOGGER.log(Level.WARNING, "Exception while waiting for response to " + readRequest.getMessageType());
-                else
+                ReadRequest readRequest = new ReadRequest(fileName, i);
+                try
                 {
-                    ReadReply reply = (ReadReply) ev.getMessage();
-                    if (reply.isFailed())
+                    Notification notification = Messenger.request(readRequest, controllerAddress);
+                    ReadReply readReply = (ReadReply) notification;
+                    if (!readReply.hasReplica())
                     {
                         LOGGER.log(Level.INFO, "File not found");
                         break;
                     }
-                    else {
-
-                        ReadData readData = handleReadReplyMsg(reply, fileName, i);
+                    else
+                    {
+                        ReadData readData = handleReadReplyMsg((ReadReply) notification, fileName, i);
                         if (readData != null)
                         {
                             Chunk c = readData.getChunk();
                             bout.write(c.toBytes());
-                            last = c.isLast();
+                            isLast = c.isLast();
                             i++;
                         }
                     }
                 }
-            } while(!last);
+                catch(SenderException | ReceiverException ex)
+                {
+                    LOGGER.log(Level.WARNING, ex.getCause().getMessage());
+                }
+            } while(!isLast);
         }
     }
 
     private ReadData handleReadReplyMsg(ReadReply msg, String fileName, int seqNum) {
-        // Ask the replica
-        MessageReceived ev = null;
         InetSocketAddress replicaAddr = msg.getReplica();
-        ReadDataRequest readDataRequest = new ReadDataRequest(fileName, seqNum, listeningPort);
-        messenger.send(readDataRequest, replicaAddr);
-        ev = messenger.waitForReplyTo(readDataRequest);
-        if (ev == null)
+        ReadDataRequest readDataRequest = new ReadDataRequest(fileName, seqNum);
+        try
         {
-            LOGGER.log(Level.WARNING, "Interrupted while waiting for response to " + readDataRequest.getMessageType());
+            return (ReadData) messenger.request(readDataRequest, msg.getReplica());
+        }
+        catch(SenderException | ReceiverException ex)
+        {
             return null;
         }
-        else if (ev.causedException())
-        {
-            LOGGER.log(Level.WARNING, "Exception while waiting for response to " + readDataRequest.getMessageType());
-            return null;
-        }
-        else
-            return ((ReadData) ev.getMessage());
     }
 
     public void stop()

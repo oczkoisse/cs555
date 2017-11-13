@@ -1,12 +1,12 @@
 package a4.nodes.controller.messages;
 
-import a4.transport.Message;
+import a4.transport.Notification;
 
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
 
-public class MajorHeartbeatRequest implements Message<ControllerMessageType>
+public class MajorHeartbeatRequest extends Notification<ControllerMessageType>
 {
     @Override
     public ControllerMessageType getMessageType()
