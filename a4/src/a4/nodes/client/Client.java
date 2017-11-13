@@ -35,11 +35,9 @@ public class Client implements Runnable {
 
     private final InetSocketAddress controllerAddress;
     private final Messenger messenger;
-    private final int listeningPort;
     private volatile boolean isRunning = true;
 
     public Client(int listeningPort, String controllerHost, int controllerPort) {
-        this.listeningPort = listeningPort;
         this.controllerAddress = new InetSocketAddress(controllerHost, controllerPort);
         this.messenger = new Messenger(listeningPort, 4);
     }
@@ -140,9 +138,15 @@ public class Client implements Runnable {
                         Notification n = Messenger.request(writeRequest, controllerAddress);
                         handleWriteReplyMsg((WriteReply) n, c);
                     }
-                    catch(SenderException | ReceiverException ex)
+                    catch(SenderException ex)
                     {
-                        LOGGER.log(Level.WARNING, ex.getCause().getMessage());
+                        LOGGER.log(Level.WARNING, "Unable to send WriteRequest to controller. Aborting write.");
+                        return;
+                    }
+                    catch(ReceiverException ex)
+                    {
+                        LOGGER.log(Level.WARNING, "Unable to receive WriteReply from controller. Aborting write.");
+                        return;
                     }
                 }
             }
@@ -186,9 +190,15 @@ public class Client implements Runnable {
                         }
                     }
                 }
-                catch(SenderException | ReceiverException ex)
+                catch(SenderException ex)
                 {
-                    LOGGER.log(Level.WARNING, ex.getCause().getMessage());
+                    LOGGER.log(Level.WARNING, "Unable to send ReadRequest to controller. Aborting read.");
+                    return;
+                }
+                catch(ReceiverException ex)
+                {
+                    LOGGER.log(Level.WARNING, "Unable to receive ReadReply from controller. Aborting read.");
+                    return;
                 }
             } while(!isLast);
         }
