@@ -6,8 +6,8 @@ import java.util.*;
 
 public class ServerTable {
 
-    private Map<String, Map<Long, Metadata>> chunks;
-    private List<Metadata> newChunks;
+    private final Map<String, Map<Long, Metadata>> chunks;
+    private final List<Metadata> newChunks;
 
     public ServerTable() {
         this.chunks = new HashMap<>();
@@ -31,7 +31,12 @@ public class ServerTable {
         }
 
         if (added)
-            newChunks.add(metadata);
+        {
+            synchronized (newChunks)
+            {
+                newChunks.add(metadata);
+            }
+        }
 
         return added;
     }
@@ -54,9 +59,12 @@ public class ServerTable {
 
     public List<Metadata> getNewChunks()
     {
-        List<Metadata> newChunksToSend = new ArrayList<>(newChunks);
-        newChunks.clear();
-        return Collections.unmodifiableList(newChunksToSend);
+        synchronized (newChunks)
+        {
+            List<Metadata> newChunksToSend = new ArrayList<>(newChunks);
+            newChunks.clear();
+            return Collections.unmodifiableList(newChunksToSend);
+        }
     }
 
     public Metadata getChunk(String filename, long seqNum)

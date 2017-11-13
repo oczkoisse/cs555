@@ -8,8 +8,8 @@ public class ControllerTable
 {
     private static final Random random = ThreadLocalRandom.current();
 
-    private Map<InetSocketAddress, Long> nodes;
-    private Map<String, Map<Long, Set<InetSocketAddress>>> chunkReplicas;
+    private final Map<InetSocketAddress, Long> nodes;
+    private final Map<String, Map<Long, Set<InetSocketAddress>>> chunkReplicas;
     private final int replication;
 
     public ControllerTable(int replication)
@@ -162,11 +162,11 @@ public class ControllerTable
         synchronized (chunkReplicas)
         {
             Set<InetSocketAddress> replicas = getAllReplicas(filename, sequenceNum);
+            Set<InetSocketAddress> candidates = new HashSet<>();
             if (replicas != null && replicas.size() >= replication)
-                return null;
+                return candidates;
             else
             {
-                Set<InetSocketAddress> candidates = new HashSet<>();
                 int count = replicas == null ? replication : replication - replicas.size();
                 synchronized (nodes)
                 {
@@ -193,6 +193,18 @@ public class ControllerTable
                     }
                     return candidates;
                 }
+            }
+        }
+    }
+
+    public void reset()
+    {
+        synchronized (nodes)
+        {
+            synchronized (chunkReplicas)
+            {
+                nodes.clear();
+                chunkReplicas.clear();
             }
         }
     }

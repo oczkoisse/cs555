@@ -61,11 +61,16 @@ public class Controller
                     {
                         for(Long l: seqNums)
                         {
-                            sb.append(file + ":" + l + " -> ");
-                            for(InetSocketAddress addr: controllerTable.getAllReplicas(file, l))
-                                sb.append(addr.getHostString()+":"+addr.getPort() + ", ");
-                            sb.delete(sb.length() - 2, sb.length());
-                            sb.append("\n");
+                            Set<InetSocketAddress> replicas = controllerTable.getAllReplicas(file, l);
+                            if (replicas != null)
+                            {
+                                sb.append(file + ":" + l + " -> ");
+                                for(InetSocketAddress addr: replicas)
+                                    sb.append(addr.getHostString()+":"+addr.getPort() + ", ");
+                                sb.delete(sb.length() - 2, sb.length());
+                                sb.append("\n");
+                            }
+
                         }
                     }
                 }
@@ -136,12 +141,18 @@ public class Controller
         {
             case NOTIFICATION_SENT: {
                 NotificationSent msev = (NotificationSent) ev;
-                if (msev.getNotification().getMessageType() == ControllerMessageType.CHECK_IF_ALIVE)
+                Notification notification = msev.getNotification();
+
+                if (notification.getMessageType() == ControllerMessageType.CHECK_IF_ALIVE ||
+                        notification.getMessageType() == ControllerMessageType.TRANSFER  )
                 {
                     String dest = msev.getDestination().getHostName();
                     LOGGER.log(Level.INFO, "Looks like the chunk server at " + dest + " died" );
-                    controllerTable.removeNode(msev.getDestination());
-                    initiateRecovery();
+                    if (controllerTable.hasNode(msev.getDestination())) {
+                        controllerTable.removeNode(msev.getDestination());
+                        printSummary();
+                        initiateRecovery();
+                    }
                 }
                 else
                     LOGGER.log(Level.WARNING, "Failed to send notification: " + msev.getNotification().getMessageType());
@@ -155,27 +166,44 @@ public class Controller
 
     private void initiateRecovery()
     {
-        for(String filename: controllerTable.getAllFiles())
+        synchronized (controllerTable)
         {
-            for(Long seq: controllerTable.getAllSequenceNums(filename))
+            boolean recoveryImpossible = false;
+
+            done:
+            for(String filename: controllerTable.getAllFiles())
             {
-                Set<InetSocketAddress> candidates = controllerTable.getCandidates(filename, seq);
-                if (candidates == null)
-                    continue;
-                LOGGER.log(Level.INFO, filename + ":" + seq + " needs to be replicated " + candidates.size() + " times");
-                for(InetSocketAddress dest: candidates)
+                for(Long seq: controllerTable.getAllSequenceNums(filename))
                 {
-                    InetSocketAddress exReplica = controllerTable.getExistingReplica(filename, seq);
-                    if (exReplica != null)
+                    Set<InetSocketAddress> candidates = controllerTable.getCandidates(filename, seq);
+                    if (candidates == null)
                     {
-                        LOGGER.log(Level.INFO, "Requesting transfer of " + filename + ":" + seq + " to " + exReplica);
-                        messenger.send(new Transfer(filename, seq, dest), exReplica);
+                        recoveryImpossible = true;
+                        break done;
                     }
-                    else
+                    else if (candidates.size() == 0)
+                        continue;
+
+                    LOGGER.log(Level.INFO, filename + ":" + seq + " needs to be replicated " + candidates.size() + " times");
+                    for(InetSocketAddress dest: candidates)
                     {
-                        LOGGER.log(Level.SEVERE, "Failed to recover " + filename + ":" + seq);
+                        InetSocketAddress exReplica = controllerTable.getExistingReplica(filename, seq);
+                        if (exReplica != null)
+                        {
+                            LOGGER.log(Level.INFO, "Requesting transfer of " + filename + ":" + seq + " to " + exReplica);
+                            messenger.send(new Transfer(filename, seq, dest), exReplica);
+                        }
+                        else
+                        {
+                            LOGGER.log(Level.SEVERE, "Failed to recover " + filename + ":" + seq);
+                        }
                     }
                 }
+            }
+            if (recoveryImpossible)
+            {
+                LOGGER.log(Level.WARNING, "Replication level fell below threshold. Recovery impossible");
+                controllerTable.reset();
             }
         }
     }
