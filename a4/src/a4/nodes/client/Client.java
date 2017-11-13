@@ -161,10 +161,12 @@ public class Client implements Runnable {
 
     public void readFile(String fileName, Path outDir) throws IOException
     {
+        int maxRetries = 5;
         int i = 0;
         try(FileOutputStream fout = new FileOutputStream(Paths.get(outDir.toString(), fileName).toString());
             BufferedOutputStream bout = new BufferedOutputStream(fout))
         {
+            int retries = 0;
             boolean isLast = false;
             do {
                 LOGGER.log(Level.INFO, String.format("Reading chunk %s:%d", fileName, i));
@@ -175,7 +177,7 @@ public class Client implements Runnable {
                     ReadReply readReply = (ReadReply) notification;
                     if (!readReply.hasReplica())
                     {
-                        LOGGER.log(Level.INFO, "File not found");
+                        LOGGER.log(Level.INFO, String.format("Chunk %s:%d not found. Aborting read.", fileName, i));
                         break;
                     }
                     else
@@ -187,6 +189,12 @@ public class Client implements Runnable {
                             bout.write(c.toBytes());
                             isLast = c.isLast();
                             i++;
+                            retries = 0;
+                        }
+                        else
+                        {
+                            LOGGER.log(Level.INFO, "Retrying...");
+                            retries++;
                         }
                     }
                 }
@@ -200,21 +208,36 @@ public class Client implements Runnable {
                     LOGGER.log(Level.WARNING, "Unable to receive ReadReply from controller. Aborting read.");
                     return;
                 }
-            } while(!isLast);
+            } while(!isLast && retries < maxRetries);
+            if (retries == maxRetries)
+                LOGGER.log(Level.INFO, "Maximum retry limit exceeded while reading. Aborting read.");
+            else if (isLast)
+                LOGGER.log(Level.INFO, String.format("Successfully read all %d chunks for file %s", i, fileName));
         }
     }
 
     private ReadData handleReadReplyMsg(ReadReply msg, String fileName, int seqNum) {
-        InetSocketAddress replicaAddr = msg.getReplica();
-        ReadDataRequest readDataRequest = new ReadDataRequest(fileName, seqNum);
-        try
+        if (msg.hasReplica())
         {
-            return (ReadData) messenger.request(readDataRequest, msg.getReplica());
+            InetSocketAddress replicaAddr = msg.getReplica();
+            ReadDataRequest readDataRequest = new ReadDataRequest(fileName, seqNum);
+            try
+            {
+                return (ReadData) messenger.request(readDataRequest, replicaAddr);
+            }
+            catch(SenderException ex)
+            {
+                LOGGER.log(Level.INFO, String.format("Unable to send ReadDataRequest to %s for %s:%d", replicaAddr, fileName, seqNum));
+                return null;
+            }
+            catch(ReceiverException ex)
+            {
+                LOGGER.log(Level.INFO, String.format("Unable to receive ReadData from %s for %s:%d", replicaAddr, fileName, seqNum));
+                return null;
+            }
         }
-        catch(SenderException | ReceiverException ex)
-        {
+        else
             return null;
-        }
     }
 
     public void stop()
