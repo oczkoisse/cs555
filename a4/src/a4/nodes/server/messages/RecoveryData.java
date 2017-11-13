@@ -25,12 +25,12 @@ public class RecoveryData extends Notification<ServerMessageType> {
     {
         if (filename == null)
             throw new NullPointerException("Filename is null");
-        if (failedSlices == null || failedSlices.size() == 0)
+        if (failedSlices == null || failedSlices.size() == 0 || failedSlices.contains(null))
             throw new IllegalArgumentException("Failed slice list is invalid");
-        if (correctedSlices == null || correctedSlices.size() == 0)
+        if (correctedSlices == null || correctedSlices.size() == 0 || correctedSlices.contains(null))
             throw new IllegalArgumentException("Corrected slice list is invalid");
         if (correctedSlices.size() != failedSlices.size())
-            throw new IllegalArgumentException("Size mismtach between hasReplica slices and corrected slices lists");
+            throw new IllegalArgumentException("Size mismatch between failed slices and corrected slices lists");
         if (sequenceNum < 0)
             throw new IllegalArgumentException("Sequence number is negative");
 
@@ -39,11 +39,11 @@ public class RecoveryData extends Notification<ServerMessageType> {
         this.filename = filename;
         this.sequenceNum = sequenceNum;
         this.recoveryData = new HashMap<>();
-        for(int i: failedSlices)
+        for(int i=0; i<failedSlices.size(); i++)
         {
             Object result = recoveryData.putIfAbsent(failedSlices.get(i), correctedSlices.get(i));
             if (result != null)
-                throw new IllegalArgumentException("Repeated elements in hasReplica slices list");
+                throw new IllegalArgumentException("Repeated elements in failed slices list");
         }
     }
 

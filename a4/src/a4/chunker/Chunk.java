@@ -77,6 +77,7 @@ public class Chunk implements Externalizable, Iterable<Slice>
 
             for (int curSlice=0; curSlice < sliceCount; curSlice++)
             {
+                // Read exactly sliceBuffer.length bytes, unless the file ends
                 int off = 0;
                 while(off < sliceBuffer.length) {
                     int read = din.read(sliceBuffer, off, sliceBuffer.length - off);
@@ -86,30 +87,47 @@ public class Chunk implements Externalizable, Iterable<Slice>
                         break;
                 }
 
-                if (curSlice == sliceCount - 1 && din.read() != -1)
+                if (off < sliceBuffer.length && curSlice != sliceCount - 1)
                 {
+                    // missing slices
+                    while(curSlice < sliceCount)
+                    {
+                        this.sliceList.add(null);
+                        failedSlices.add(curSlice);
+                        exMessage.append(String.format("Integrity check failed for slice %d: found lesser bytes than expected.%n", curSlice));
+                        curSlice++;
+                    }
+                }
+                else if (curSlice == sliceCount - 1 && din.read() != -1)
+                {
+                    // If it is last slice and there are more bytes than expected
                     exMessage.append(String.format("Integrity check failed for slice %d: found more bytes than expected.%n", curSlice));
+                    this.sliceList.add(null);
                     failedSlices.add(curSlice);
-                    continue;
+                }
+                else
+                {
+                    Slice s = null;
+                    if(off == sliceBuffer.length)
+                    {
+                        s = new Slice(sliceBuffer, sliceSize);
+                    }
+                    else
+                    {
+                        s = new Slice(Arrays.copyOf(sliceBuffer, off), sliceSize);
+                    }
+                    Hash calculatedHash = s.calculateHash(hasher);
+                    if(calculatedHash.equals(expectedHashes.get(curSlice)))
+                        this.sliceList.add(s);
+                    else
+                    {
+                        // null placeholder for fixing later
+                        this.sliceList.add(null);
+                        failedSlices.add(curSlice);
+                        exMessage.append(String.format("Integrity check failed for slice %d: expected %s, got %s.%n", curSlice, expectedHashes.get(curSlice), calculatedHash));
+                    }
                 }
 
-                Slice s = null;
-                if(off == sliceBuffer.length)
-                {
-                    s = new Slice(sliceBuffer, sliceSize);
-                }
-                else
-                {
-                    s = new Slice(Arrays.copyOf(sliceBuffer, off), sliceSize);
-                }
-                Hash calculatedHash = s.calculateHash(hasher);
-                if(calculatedHash.equals(expectedHashes.get(curSlice)))
-                    this.sliceList.add(s);
-                else
-                {
-                    exMessage.append(String.format("Integrity check failed for slice %d: expected %s, got %s.%n", curSlice, expectedHashes.get(curSlice), calculatedHash));
-                    failedSlices.add(curSlice);
-                }
             }
         }
 
@@ -131,7 +149,12 @@ public class Chunk implements Externalizable, Iterable<Slice>
     {
         if (index < 0 || index >= sliceList.size())
             throw new IndexOutOfBoundsException("Slice index " + index + " is out of bounds for a chunk with " + sliceList.size() + " slices");
-        sliceList.set(index, slice);
+        if (sliceList.get(index) == null)
+            sliceList.set(index, slice);
+        else
+        {
+            throw new IllegalStateException("Attempt to fix non-null slice in the corrupted chunk");
+        }
     }
 
     public int size()
